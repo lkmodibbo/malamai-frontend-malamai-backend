@@ -1,112 +1,179 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import SUBJECTS from '../constants/subjects';
 import SubjectCard from '../components/SubjectCard';
-import TopicList from '../components/TopicList';
+
+// Enable animation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export default function SubjectScreen({ navigation }) {
-	const [previewSubject, setPreviewSubject] = useState(null);
+  const [openSubjectId, setOpenSubjectId] = useState(null);
 
-	return (
-		<SafeAreaView style={{ flex: 1, backgroundColor: '#f2f5f3' }}>
-			<ScrollView contentContainerStyle={styles.container}>
-				<TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Landing')}>
-					<Text style={styles.backText}>← Back to Home</Text>
-				</TouchableOpacity>
-				<Text style={styles.title}>Choose a subject</Text>
+  const toggleDropdown = (id) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setOpenSubjectId(openSubjectId === id ? null : id);
+  };
 
-				<View style={styles.grid}>
-					{SUBJECTS.map((s) => (
-						<SubjectCard
-							key={s.id}
-							name={s.name}
-							emoji={s.emoji}
-							color={s.color}
-							onPress={() => navigation.navigate('Learn', { subject: s })}
-						/>
-					))}
-				</View>
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f2f5f3' }}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
-				<Text style={styles.subtitle}>Or preview topics</Text>
-				<View style={styles.chipsRow}>
-					{SUBJECTS.map((s) => (
-						<TouchableOpacity key={s.id} style={styles.chip} onPress={() => setPreviewSubject(s)}>
-							<Text style={styles.chipText}>{s.emoji} {s.name.split(' ')[0]}</Text>
-						</TouchableOpacity>
-					))}
-				</View>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Landing')}>
+          <Text style={styles.backText}>← Back to Home</Text>
+        </TouchableOpacity>
 
-				{previewSubject && (
-					<TopicList
-						subjectName={previewSubject.name}
-						topics={previewSubject.topics}
-						onSelectTopic={(topic) => navigation.navigate('Learn', { subject: previewSubject, topic })}
-					/>
-				)}
+        <Text style={styles.title}>Choose a Subject</Text>
 
-			</ScrollView>
-		</SafeAreaView>
-	);
+        {/* Subject Cards Grid */}
+        <View style={styles.grid}>
+          {SUBJECTS.map((s) => (
+            <SubjectCard
+              key={s.id}
+              name={s.name}
+              emoji={s.emoji}
+              color={s.color}
+              onPress={() => navigation.navigate('Learn', { subject: s })}
+            />
+          ))}
+        </View>
+
+        {/* Preview Topics Dropdown */}
+        <Text style={styles.subtitle}>Preview Topics</Text>
+
+        {SUBJECTS.map((s) => {
+          const isOpen = openSubjectId === s.id;
+          return (
+            <View key={s.id} style={styles.dropdownWrapper}>
+
+              {/* Dropdown Header */}
+              <TouchableOpacity
+                style={[styles.dropdownHeader, isOpen && styles.dropdownHeaderOpen]}
+                onPress={() => toggleDropdown(s.id)}
+              >
+                <Text style={styles.dropdownHeaderText}>{s.emoji} {s.name}</Text>
+                <Text style={styles.arrow}>{isOpen ? '▲' : '▼'}</Text>
+              </TouchableOpacity>
+
+              {/* Dropdown Body */}
+              {isOpen && (
+                <View style={styles.dropdownBody}>
+                  {s.topics.map((topic, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.topicRow}
+                      onPress={() => navigation.navigate('Learn', { subject: s, topic })}
+                    >
+                      <Text style={styles.topicDot}>•</Text>
+                      <Text style={styles.topicText}>{topic}</Text>
+                      <Text style={styles.topicArrow}>→</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+            </View>
+          );
+        })}
+
+      </ScrollView>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-	container: {
-		padding: 16,
-	},
-	title: {
-		fontSize: 22,
-		fontWeight: '800',
-		color: '#0a7c4f',
-		marginBottom: 12
-	},
-	grid: {
-		flexDirection: 'row',
-		flexWrap: 'wrap',
-		justifyContent: 'space-between'
-	},
-	subtitle: {
-		marginTop: 18,
-		color: '#0a7c4f',
-		fontWeight: '700',
-		textAlign: 'center',
-		alignSelf: 'center'
-	},
-	chipsRow: {
-		flexDirection: 'row',
-		flexWrap: 'wrap',
-		justifyContent: 'space-between',
-		marginTop: 8
-	},
-	chip: {
-		backgroundColor: '#f5a623',
-		paddingVertical: 10,
-		paddingHorizontal: 12,
-		borderRadius: 20,
-		width: '48%',
-		alignItems: 'center',
-		marginBottom: 8,
-		shadowColor: '#000',
-		shadowOpacity: 0.1,
-		shadowRadius: 6,
-	},
-	chipText: {
-		color: '#0a7c4f',
-		fontWeight: '700'
-	},
-	backButton: {
-		marginBottom: 16,
-		paddingVertical: 10,
-		paddingHorizontal: 14,
-		backgroundColor: '#0a7c4f',
-		borderRadius: 20,
-		alignSelf: 'flex-start',
-		shadowColor: '#000',
-		shadowOpacity: 0.16,
-		shadowRadius: 6,
-	},
-	backText: {
-		color: '#fff',
-		fontWeight: '700'
-	}
+  container: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  backButton: {
+    marginBottom: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: '#0a7c4f',
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  backText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#0a7c4f',
+    marginBottom: 12,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  subtitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0a7c4f',
+    marginBottom: 10,
+    alignSelf: 'center',
+  },
+
+  // Dropdown
+  dropdownWrapper: {
+    marginBottom: 10,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#d0e8dc',
+  },
+  dropdownHeader: {
+    backgroundColor: '#f5a623',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  dropdownHeaderOpen: {
+    backgroundColor: '#0a7c4f',
+  },
+  dropdownHeaderText: {
+    fontWeight: '700',
+    fontSize: 15,
+    color: '#fff',
+  },
+  arrow: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  dropdownBody: {
+    backgroundColor: '#ffffff',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  topicRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  topicDot: {
+    color: '#f5a623',
+    fontSize: 18,
+    marginRight: 8,
+  },
+  topicText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1a1a1a',
+  },
+  topicArrow: {
+    color: '#0a7c4f',
+    fontWeight: '700',
+    fontSize: 16,
+  },
 });
