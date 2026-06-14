@@ -1,6 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, StyleSheet, Alert, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import useSRS from '../hooks/useSRS';
+import useWeaknessTracker from '../src/hooks/useWeaknessTracker';
+import useNotes from '../src/hooks/useNotes';
+import FlashcardScreen from './FlashcardScreen';
+import { callGemini, parseQuestionJson, normalizeQuestionList, isQuotaError } from '../src/utils/gemini';
+import { getMode, getSystemPrompt } from '../src/hooks/useLanguageMode';
 
 // FIX 1: Removed hardcoded GEMINI_ENDPOINT constant entirely.
 // The endpoint must come from the environment variable only.
@@ -10,143 +16,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const QUOTA_ERROR_MESSAGE = 'Gemini quota is exhausted right now. Please try fetching the questions again soon.';
 const QUIZ_TIME_SECONDS = 5 * 60;
 const QUESTION_COUNT = 5;
-
-function extractGeminiText(data) {
-  const parts = data?.candidates?.[0]?.content?.parts;
-
-  if (Array.isArray(parts)) {
-    return parts
-      .filter((part) => part?.text)
-      .map((part) => part.text)
-      .join('\n')
-      .trim();
-  }
-
-  return '';
-}
-
-function parseQuestionJson(text) {
-  const cleanedText = text
-    .replace(/```json/gi, '```')
-    .replace(/```/g, '')
-    .trim();
-
-  try {
-    return JSON.parse(cleanedText);
-  } catch (e) {
-    const objectStart = cleanedText.indexOf('{');
-    const objectEnd = cleanedText.lastIndexOf('}');
-    const arrayStart = cleanedText.indexOf('[');
-    const arrayEnd = cleanedText.lastIndexOf(']');
-    const hasArray = arrayStart !== -1 && arrayEnd > arrayStart;
-    const hasObject = objectStart !== -1 && objectEnd > objectStart;
-    const useArray = hasArray && (!hasObject || arrayStart < objectStart);
-    const start = useArray ? arrayStart : objectStart;
-    const end = useArray ? arrayEnd : objectEnd;
-
-    if (start === -1 || end === -1 || end <= start) {
-      throw new Error('Unable to find questions JSON in AI response.');
-    }
-
-    return JSON.parse(cleanedText.slice(start, end + 1));
-  }
-}
-
-function normalizeOptions(rawOptions) {
-  const letters = ['A', 'B', 'C', 'D'];
-
-  if (Array.isArray(rawOptions)) {
-    return rawOptions.slice(0, 4).reduce((acc, option, index) => {
-      const text = typeof option === 'string'
-        ? option
-        : option?.text || option?.value || option?.option || option?.answer;
-
-      if (text) acc[letters[index]] = String(text).trim();
-      return acc;
-    }, {});
-  }
-
-  if (rawOptions && typeof rawOptions === 'object') {
-    return Object.entries(rawOptions).reduce((acc, [key, value]) => {
-      const letter = String(key).trim().toUpperCase().slice(0, 1);
-      const text = typeof value === 'string'
-        ? value
-        : value?.text || value?.value || value?.option || value?.answer;
-
-      if (letters.includes(letter) && text) {
-        acc[letter] = String(text).trim();
-      }
-
-      return acc;
-    }, {});
-  }
-
-  return {};
-}
-
-function normalizeAnswer(rawAnswer, options) {
-  const answer = String(rawAnswer || '').trim();
-  const upperAnswer = answer.toUpperCase();
-
-  if (options[upperAnswer]) return upperAnswer;
-
-  const matchedOption = Object.entries(options).find(([, text]) => (
-    text.trim().toLowerCase() === answer.toLowerCase()
-  ));
-
-  return matchedOption?.[0] || '';
-}
-
-function normalizeQuestion(rawQuestion) {
-  const options = normalizeOptions(rawQuestion?.options || rawQuestion?.choices || rawQuestion?.answers);
-  const answer = normalizeAnswer(
-    rawQuestion?.answer || rawQuestion?.correctAnswer || rawQuestion?.correct_answer || rawQuestion?.correct,
-    options
-  );
-  const questionText = rawQuestion?.question || rawQuestion?.prompt || rawQuestion?.text;
-
-  if (!questionText || Object.keys(options).length < 2 || !answer) {
-    throw new Error(`Question response is missing required fields: ${JSON.stringify(rawQuestion)}`);
-  }
-
-  return {
-    question: String(questionText).trim(),
-    options,
-    answer,
-    explanation: String(rawQuestion?.explanation || rawQuestion?.reason || '').trim(),
-  };
-}
-
-function normalizeQuestionText(question) {
-  return String(question || '').trim().toLowerCase().replace(/\s+/g, ' ');
-}
-
-function normalizeQuestionList(rawQuestions, expectedCount) {
-  const items = Array.isArray(rawQuestions) ? rawQuestions : rawQuestions?.questions;
-
-  if (!Array.isArray(items)) {
-    throw new Error('Gemini did not return a questions array.');
-  }
-
-  const uniqueQuestions = [];
-  const seenQuestions = new Set();
-
-  items.forEach((item) => {
-    const question = normalizeQuestion(item);
-    const questionKey = normalizeQuestionText(question.question);
-
-    if (!seenQuestions.has(questionKey)) {
-      seenQuestions.add(questionKey);
-      uniqueQuestions.push(question);
-    }
-  });
-
-  if (uniqueQuestions.length < expectedCount) {
-    throw new Error(`Gemini returned ${uniqueQuestions.length} usable questions instead of ${expectedCount}. Tap Try Again.`);
-  }
-
-  return uniqueQuestions.slice(0, expectedCount);
-}
 
 function getMotivation(score, total) {
   const percent = total > 0 ? Math.round((score / total) * 100) : 0;
@@ -163,99 +32,10 @@ function getFallbackExplanation(subject, topic) {
   return `Gemini quota is exhausted right now, so here is a quick offline note.\n\n${focus} is an important part of ${subjectName}. Start by learning the key meaning, then practise one small example before answering questions. Read each question carefully, remove options that are clearly wrong, and choose the best answer.\n\nReady to test yourself?`;
 }
 
-function extractRetryDelay(message) {
-  const match = String(message).match(/retry in ([\d.]+)s/i);
-  return match ? Math.ceil(Number(match[1])) : null;
-}
-
-function isQuotaError(err) {
-  return err?.status === 429 || /quota|RESOURCE_EXHAUSTED/i.test(err?.message || '');
-}
-
 function formatTime(seconds) {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
   return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
-}
-
-function buildGeminiUrl(endpoint, apiKey) {
-  try {
-    const url = new URL(endpoint);
-    url.searchParams.set('key', apiKey);
-    return url.toString();
-  } catch (err) {
-    const separator = endpoint.includes('?') ? '&' : '?';
-    return `${endpoint}${separator}key=${encodeURIComponent(apiKey)}`;
-  }
-}
-
-// FIX 1 (continued): callGemini now throws immediately if either env var is missing,
-// instead of falling back to the wrong hardcoded model URL.
-async function callGemini(prompt) {
-  const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-  const endpoint = process.env.EXPO_PUBLIC_GEMINI_API_URL;
-
-  if (!apiKey) {
-    throw new Error('Missing EXPO_PUBLIC_GEMINI_API_KEY in environment. Check your .env file and restart the dev server.');
-  }
-
-  if (!endpoint) {
-    throw new Error('Missing EXPO_PUBLIC_GEMINI_API_URL in environment. Check your .env file and restart the dev server.');
-  }
-
-  // Temporary debug log — remove before production
-  console.log('[callGemini] endpoint:', endpoint.replace(apiKey, '***'));
-
-  const res = await fetch(buildGeminiUrl(endpoint, apiKey), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            {
-              text: prompt,
-            },
-          ],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 4096,
-      },
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    let message = text;
-
-    try {
-      const data = JSON.parse(text);
-      message = data?.error?.message || text;
-    } catch {
-      message = text;
-    }
-
-    const error = new Error(`API error: ${res.status} ${message}`);
-    error.status = res.status;
-    error.retryDelay = extractRetryDelay(message);
-    throw error;
-  }
-
-  const data = await res.json();
-  const text = extractGeminiText(data);
-
-  if (!text) {
-    const blockReason = data?.promptFeedback?.blockReason;
-    throw new Error(blockReason
-      ? `Gemini blocked the response: ${blockReason}`
-      : `No text returned from API: ${JSON.stringify(data)}`);
-  }
-
-  return text;
 }
 
 export default function LearnScreen({ route, navigation }) {
@@ -269,6 +49,11 @@ export default function LearnScreen({ route, navigation }) {
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState({});
+  const { saveMissedQuestions } = useSRS();
+  const { logWrongAnswer } = useWeaknessTracker();
+  const { saveNote, getNote } = useNotes();
+  const [noteText, setNoteText] = useState('');
+  const [noteStatus, setNoteStatus] = useState('');
 
   // FIX 2: loadingQuestion is now also used as the fetchQuestions guard (replaces the
   // questions.length check that prevented retrying after a failed fetch).
@@ -294,26 +79,20 @@ export default function LearnScreen({ route, navigation }) {
     try {
       const subjectName = subject?.name || 'this subject';
       const learnTopic = topic || subjectName;
+      const languageMode = await getMode();
+      const systemPrompt = getSystemPrompt(languageMode);
 
       const learnPrompt = `
-        You are MalamAI, a patient and encouraging JAMB tutor for northern Nigerian secondary school students. 
-        Explain the topic "${learnTopic}" in simple terms, using relatable Nigerian examples and occasional short
-        Hausa encouragements like "Sai haka!", "Nagode", "Ka yi kyau", "Kada ka damu". End your explanation with the phrase: 
+        ${systemPrompt}
+
+        Explain the topic "${learnTopic}" in simple terms, using relatable Nigerian examples.
+        Keep the language style appropriate for a JAMB student. End the explanation with the phrase:
         Ready to test yourself?
 
-        IMPORTANT LANGUAGE RULE:
-        - Write 80% in clear Simple English
-        - Only 20% Hausa - limited to short encouragement phrases only
-        - Hausa phrases allowed: "Sai haka!", "Nagode", "Ya yi kyau", "Kada ka damu", "Latsa mu fara"
-        - Never write full Hausa sentences or paragraphs
-        - The explanation, examples, and all teaching content must be in English
-
-          Explain the topic "${learnTopic}" in the subject "${subjectName}" following the
-          these rules. 
-          - Use short paragraphs, not walls of text.
-          - Use relatable Nigerian Examples (markets, farms, local contexts, everyday life).
-          - Teach at SS2/SS3 level, not university level. Keep it simple and clear.
-          - End with "Ready to test yourself?" to encourage the student to practice.
+        - Use short paragraphs, not walls of text.
+        - Use relatable Nigerian examples (markets, farms, local contexts, everyday life).
+        - Teach at SS2/SS3 level, not university level. Keep it simple and clear.
+        - End with "Ready to test yourself?" to encourage the student to practise.
       `;
       const text = await callGemini(learnPrompt);
       setExplanation(typeof text === 'string' ? text : JSON.stringify(text));
@@ -339,6 +118,28 @@ export default function LearnScreen({ route, navigation }) {
     navigation.setOptions({ headerShown: false });
     fetchExplanation();
   }, [fetchExplanation, navigation]);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadNote() {
+      if (!subject?.id || !topic) {
+        setNoteText('');
+        return;
+      }
+
+      try {
+        const existing = await getNote(subject, topic);
+        if (mounted) {
+          setNoteText(existing?.note || '');
+        }
+      } catch (err) {
+        console.warn('[LearnScreen] load note failed', err);
+      }
+    }
+
+    loadNote();
+    return () => { mounted = false; };
+  }, [subject, topic, getNote]);
 
   // FIX 3 (continued): Timer only ticks when timeRemaining is a real number.
   useEffect(() => {
@@ -367,7 +168,11 @@ export default function LearnScreen({ route, navigation }) {
     try {
       const subjectName = subject?.name || 'this subject';
       const practiceTopic = topic || subjectName;
+      const languageMode = await getMode();
+      const systemPrompt = getSystemPrompt(languageMode);
       const practicePrompt = `
+${systemPrompt}
+
 You are Malam AI, a JAMB tutor. Generate exactly ${maxQuestions} unique multiple choice JAMB-style
 questions on the topic "${practiceTopic}" in "${subjectName}".
 
@@ -449,7 +254,7 @@ Format your response EXACTLY like this JSON:
     setCurrentQuestionIndex(nextIndex);
   }
 
-  function handleSubmitQuiz() {
+  async function handleSubmitQuiz() {
     if (submittedRef.current) return;
     submittedRef.current = true;
 
@@ -479,6 +284,27 @@ Format your response EXACTLY like this JSON:
       ? [topic || subject?.name || 'Practice']
       : [];
 
+    try {
+      await saveMissedQuestions(questions, selectedAnswers, topic, subject?.id);
+    } catch (err) {
+      console.warn('[saveMissedQuestions]', err);
+    }
+
+    try {
+      const wrongItems = review.filter((item) => !item.isCorrect);
+      await Promise.all(
+        wrongItems.map((item) =>
+          logWrongAnswer(
+            topic || subject?.name || 'Practice',
+            { id: subject?.id, name: subject?.name },
+            item.question
+          )
+        )
+      );
+    } catch (err) {
+      console.warn('[logWrongAnswer]', err);
+    }
+
     navigation.replace('Score', {
       score: finalScore,
       total: maxQuestions,
@@ -486,6 +312,26 @@ Format your response EXACTLY like this JSON:
       review,
       motivation: getMotivation(finalScore, maxQuestions),
     });
+  }
+
+  async function handleSaveNote() {
+    if (!subject?.id || !topic) {
+      Alert.alert('Missing subject', 'Unable to save note because the subject or topic is missing.');
+      return;
+    }
+
+    try {
+      await saveNote(
+        { id: subject.id, name: subject.name, emoji: subject.emoji },
+        topic,
+        noteText
+      );
+      setNoteStatus('Saved');
+      setTimeout(() => setNoteStatus(''), 1500);
+    } catch (error) {
+      console.warn('[LearnScreen] save note failed', error);
+      Alert.alert('Save failed', 'Unable to save your note. Please try again.');
+    }
   }
 
   return (
@@ -503,6 +349,12 @@ Format your response EXACTLY like this JSON:
           onPress={() => { setMode('learn'); fetchExplanation(); }}
         >
           <Text style={mode === 'learn' ? styles.modeActiveText : styles.modeText}>Learn</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.modeBtn, mode === 'flashcards' && styles.modeActive]}
+          onPress={() => setMode('flashcards')}
+        >
+          <Text style={mode === 'flashcards' ? styles.modeActiveText : styles.modeText}>Flashcards</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.modeBtn, mode === 'practice' && styles.modeActive]}
@@ -528,10 +380,34 @@ Format your response EXACTLY like this JSON:
               ? <ActivityIndicator size="large" color="#0a7c4f" />
               : <Text style={styles.explanationText}>{explanation}</Text>
             }
+
+            <View style={styles.notesCard}>
+              <Text style={styles.notesHeader}>📝 My Notes</Text>
+              <TextInput
+                style={styles.notesInput}
+                value={noteText}
+                onChangeText={setNoteText}
+                placeholder="Write your own notes here…"
+                placeholderTextColor="#9aa299"
+                multiline
+                textAlignVertical="top"
+              />
+              <View style={styles.notesFooter}>
+                <Text style={styles.noteStatus}>{noteStatus}</Text>
+                <TouchableOpacity style={styles.saveNoteBtn} onPress={handleSaveNote} activeOpacity={0.8}>
+                  <Text style={styles.saveNoteText}>Save note</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             <TouchableOpacity style={styles.cta} onPress={startPractice}>
               <Text style={styles.ctaText}>Ready to test yourself? Start Practice</Text>
             </TouchableOpacity>
           </View>
+        )}
+
+        {mode === 'flashcards' && (
+          <FlashcardScreen subject={subject} topic={topic} startPractice={startPractice} />
         )}
 
         {mode === 'practice' && (
@@ -685,6 +561,49 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontSize: 16,
   },
+  notesCard: {
+    marginTop: 18,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 18,
+    padding: 16,
+  },
+  notesHeader: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0a7c4f',
+    marginBottom: 10,
+  },
+  notesInput: {
+    minHeight: 110,
+    borderRadius: 14,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#d7ded5',
+    padding: 14,
+    color: '#222',
+    fontSize: 15,
+    textAlignVertical: 'top',
+  },
+  notesFooter: {
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  noteStatus: {
+    color: '#4b6d4d',
+    fontSize: 13,
+  },
+  saveNoteBtn: {
+    backgroundColor: '#0a7c4f',
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+  },
+  saveNoteText: {
+    color: '#fff',
+    fontWeight: '800',
+  },
   cta: {
     marginTop: 16,
     backgroundColor: '#f5a623',
@@ -725,11 +644,11 @@ const styles = StyleSheet.create({
   },
   navRow: {
     flexDirection: 'row',
-    gap: 10,
+    justifyContent: 'space-between',
     marginTop: 16,
   },
   navBtn: {
-    flex: 1,
+    flex: 0.48,
     backgroundColor: '#0a7c4f',
     paddingVertical: 14,
     borderRadius: 30,
@@ -752,8 +671,8 @@ const styles = StyleSheet.create({
   questionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
     marginTop: 16,
+    justifyContent: 'center',
   },
   questionBox: {
     width: 42,
@@ -764,6 +683,7 @@ const styles = StyleSheet.create({
     borderColor: '#d0e8dc',
     alignItems: 'center',
     justifyContent: 'center',
+    margin: 4,
   },
   questionBoxAnswered: {
     backgroundColor: '#0a7c4f',

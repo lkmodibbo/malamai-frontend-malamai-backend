@@ -53,6 +53,58 @@ const SUBJECTS = [
       'Organic Chemistry',
       'Electrochemistry'
     ]
+  },
+  {
+    id: 'biology',
+    name: 'Biology',
+    emoji: '🧬',
+    color: '#2f6f34',
+    topics: [
+      'Cell Biology',
+      'Genetics',
+      'Ecology',
+      'Human Anatomy',
+      'Evolution'
+    ]
+  },
+  {
+    id: 'economics',
+    name: 'Economics',
+    emoji: '💰',
+    color: '#7f5c00',
+    topics: [
+      'Demand & Supply',
+      'Market Structures',
+      'Macroeconomics',
+      'Fiscal Policy',
+      'International Trade'
+    ]
+  },
+  {
+    id: 'government',
+    name: 'Government',
+    emoji: '🏛️',
+    color: '#2a4a5f',
+    topics: [
+      'Political Systems',
+      'Constitution',
+      'Public Policy',
+      'Civic Rights',
+      'Electoral Processes'
+    ]
+  },
+  {
+    id: 'literature',
+    name: 'Literature',
+    emoji: '📚',
+    color: '#5a2f46',
+    topics: [
+      'Poetry',
+      'Drama',
+      'Prose',
+      'Literary Analysis',
+      'Authors & Themes'
+    ]
   }
 ];
 

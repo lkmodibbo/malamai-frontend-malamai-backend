@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import SUBJECTS from '../constants/subjects';
 import SubjectCard from '../components/SubjectCard';
+import HomeReviewCard from '../components/HomeReviewCard';
+import useSRS from '../hooks/useSRS';
+import useStudentProfile from '../src/hooks/useStudentProfile';
 
 // Enable animation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -11,6 +15,19 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export default function SubjectScreen({ navigation }) {
   const [openSubjectId, setOpenSubjectId] = useState(null);
+  const { dueCount, refreshQueue } = useSRS();
+  const { profile, loading } = useStudentProfile();
+
+  const selectedSubjectIds = profile?.selectedSubjects || [];
+  const visibleSubjects = loading || selectedSubjectIds.length === 0
+    ? SUBJECTS
+    : SUBJECTS.filter((subject) => selectedSubjectIds.includes(subject.id));
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshQueue();
+    }, [refreshQueue]),
+  );
 
   const toggleDropdown = (id) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -25,11 +42,13 @@ export default function SubjectScreen({ navigation }) {
           <Text style={styles.backText}>← Back to Home</Text>
         </TouchableOpacity>
 
+        <HomeReviewCard dueCount={dueCount} onPress={() => navigation.navigate('Review')} />
+
         <Text style={styles.title}>Choose a Subject</Text>
 
         {/* Subject Cards Grid */}
         <View style={styles.grid}>
-          {SUBJECTS.map((s) => (
+          {visibleSubjects.map((s) => (
             <SubjectCard
               key={s.id}
               name={s.name}
@@ -40,10 +59,18 @@ export default function SubjectScreen({ navigation }) {
           ))}
         </View>
 
+        <TouchableOpacity style={styles.pastButton} onPress={() => navigation.navigate('PastQuestions')}>
+          <Text style={styles.pastButtonText}>📜 Past Questions</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.mockButton} onPress={() => navigation.navigate('MockSetup')}>
+          <Text style={styles.mockButtonText}>🎓 Start Mock Exam</Text>
+        </TouchableOpacity>
+
         {/* Preview Topics Dropdown */}
         <Text style={styles.subtitle}>Preview Topics</Text>
 
-        {SUBJECTS.map((s) => {
+        {visibleSubjects.map((s) => {
           const isOpen = openSubjectId === s.id;
           return (
             <View key={s.id} style={styles.dropdownWrapper}>
@@ -105,6 +132,30 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#0a7c4f',
     marginBottom: 12,
+  },
+  pastButton: {
+    backgroundColor: '#f5a623',
+    paddingVertical: 14,
+    borderRadius: 18,
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  pastButtonText: {
+    color: '#0a7c4f',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  mockButton: {
+    backgroundColor: '#0a7c4f',
+    paddingVertical: 14,
+    borderRadius: 18,
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  mockButtonText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 15,
   },
   grid: {
     flexDirection: 'row',
