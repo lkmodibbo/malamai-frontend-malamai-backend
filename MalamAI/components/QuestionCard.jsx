@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { COLORS } from '../constants/colors';
 
 export default function QuestionCard({ question = '', options = {}, onSelect }) {
 	return (
@@ -16,10 +17,10 @@ export default function QuestionCard({ question = '', options = {}, onSelect }) 
 
 const styles = StyleSheet.create({
 	card: {
-		backgroundColor: '#fff',
+		backgroundColor: COLORS.surface,
 		padding: 12,
 		borderRadius: 12,
-		shadowColor: '#000',
+		shadowColor: COLORS.shadow,
 		shadowOpacity: 0.06,
 		shadowRadius: 6,
 		marginBottom: 12
@@ -27,18 +28,18 @@ const styles = StyleSheet.create({
 	question: {
 		fontSize: 16,
 		fontWeight: '700',
-		color: '#0a7c4f',
+		color: COLORS.primary,
 		marginBottom: 10
 	},
 	option: {
-		backgroundColor: '#f2f6f3',
+		backgroundColor: COLORS.background,
 		paddingVertical: 10,
 		paddingHorizontal: 12,
 		borderRadius: 10,
 		marginBottom: 8
 	},
 	optionText: {
-		color: '#0a7c4f',
+		color: COLORS.secondary,
 		fontWeight: '600'
 	}
 });

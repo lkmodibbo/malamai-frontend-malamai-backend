@@ -2,181 +2,202 @@ import React from 'react';
 import { ScrollView, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-function getCardColors(percent) {
-  if (percent >= 50) return { background: '#e6f6ea', border: '#0a7c4f', text: '#0a7c4f' };
-  if (percent >= 30) return { background: '#fff4db', border: '#f5a623', text: '#7a4c09' };
-  return { background: '#ffe5e5', border: '#b00020', text: '#b00020' };
+function getGrade(percent) {
+  if (percent >= 70) return { label: 'Excellent', color: '#27ae60', bg: '#eafaf1' };
+  if (percent >= 50) return { label: 'Good', color: '#2e4a7a', bg: '#e6f0ff' };
+  if (percent >= 30) return { label: 'Fair', color: '#e67e22', bg: '#fef3e2' };
+  return { label: 'Needs Work', color: '#e74c3c', bg: '#fdf0f0' };
 }
 
 function getMotivation(percent) {
-  if (percent >= 50) return 'Nagode! Ka yi kyau sosai — keep the momentum going.';
-  if (percent >= 30) return 'Sai haka! Ka na kan hanya, ci gaba da aiki.';
-  return 'Kada ka damu. Ka sake nazari, kuma za ka samu mafi kyau nan gaba.';
+  if (percent >= 70) return { text: 'Nagode! Ka yi kyau sosai — excellent performance!', emoji: '🏆' };
+  if (percent >= 50) return { text: 'Sai haka! Good work, keep pushing for higher marks.', emoji: '💪' };
+  if (percent >= 30) return { text: 'Ka na kan hanya — you\'re on track. Review weak areas and try again.', emoji: '📚' };
+  return { text: 'Kada ka damu. Every attempt makes you stronger. Review your topics and try again.', emoji: '🎯' };
 }
 
 export default function MockScoreScreen({ route, navigation }) {
   const { subjectScores = [], totalScore = 0, predictedScore = 0 } = route.params || {};
-  const totalPossible = subjectScores.reduce((sum, item) => sum + item.total, 0);
+  const totalPossible = subjectScores.reduce((s, x) => s + x.total, 0);
   const percent = totalPossible ? Math.round((totalScore / totalPossible) * 100) : 0;
+  const overall = getGrade(percent);
+  const motivation = getMotivation(percent);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.root}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Mock Exam Results</Text>
+      </View>
+
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Mock Exam Results</Text>
 
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Total Score</Text>
-          <Text style={styles.cardValue}>{totalScore}/{totalPossible}</Text>
-          <Text style={styles.cardPercent}>{percent}%</Text>
+        {/* Overall score hero */}
+        <View style={styles.heroCard}>
+          <Text style={styles.heroEmoji}>{motivation.emoji}</Text>
+          <Text style={styles.heroScore}>{totalScore}/{totalPossible}</Text>
+          <Text style={styles.heroPercent}>{percent}%</Text>
+          <View style={[styles.gradeBadge, { backgroundColor: overall.bg }]}>
+            <Text style={[styles.gradeText, { color: overall.color }]}>{overall.label}</Text>
+          </View>
         </View>
 
+        {/* Predicted JAMB score */}
         <View style={styles.predictedCard}>
-          <Text style={styles.predictedLabel}>Predicted JAMB Score</Text>
-          <Text style={styles.predictedValue}>{predictedScore}</Text>
+          <View>
+            <Text style={styles.predictedLabel}>Predicted JAMB Score</Text>
+            <Text style={styles.predictedSub}>Based on your performance</Text>
+          </View>
+          <Text style={styles.predictedValue}>{predictedScore}<Text style={styles.predictedMax}>/400</Text></Text>
         </View>
 
-        <View style={styles.section}>
-          {subjectScores.map((subject) => {
-            const colors = getCardColors(subject.percent);
-            return (
-              <View key={subject.id} style={[styles.subjectCard, { backgroundColor: colors.background, borderColor: colors.border }]}> 
-                <View style={styles.subjectHeader}>
-                  <Text style={[styles.subjectEmoji]}>{subject.emoji}</Text>
-                  <Text style={[styles.subjectName, { color: colors.text }]}>{subject.name}</Text>
+        {/* Per-subject breakdown */}
+        <Text style={styles.sectionLabel}>Subject Breakdown</Text>
+        {subjectScores.map((s) => {
+          const grade = getGrade(s.percent);
+          return (
+            <View key={s.id} style={styles.subjectRow}>
+              <Text style={styles.subjectEmoji}>{s.emoji}</Text>
+              <View style={styles.subjectInfo}>
+                <View style={styles.subjectTopRow}>
+                  <Text style={styles.subjectName}>{s.name}</Text>
+                  <Text style={styles.subjectScore}>{s.correct}/{s.total}</Text>
                 </View>
-                <Text style={[styles.subjectScore, { color: colors.text }]}>{subject.correct}/{subject.total}</Text>
-                <Text style={[styles.subjectPercent, { color: colors.text }]}>{subject.percent}%</Text>
+                <View style={styles.subjectBarBg}>
+                  <View style={[styles.subjectBarFill, { width: `${s.percent}%`, backgroundColor: grade.color }]} />
+                </View>
+                <Text style={[styles.subjectPercent, { color: grade.color }]}>{s.percent}% — {grade.label}</Text>
               </View>
-            );
-          })}
+            </View>
+          );
+        })}
+
+        {/* Motivation */}
+        <View style={styles.motivationCard}>
+          <Text style={styles.motivationText}>{motivation.text}</Text>
         </View>
 
-        <View style={styles.motivationBox}>
-          <Text style={styles.motivationText}>{getMotivation(percent)}</Text>
-        </View>
-
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Subjects')}>
-          <Text style={styles.actionText}>Back to Subjects</Text>
+        {/* Actions */}
+        <TouchableOpacity
+          style={styles.primaryBtn}
+          onPress={() => navigation.navigate('MockSetup')}
+        >
+          <Text style={styles.primaryBtnText}>Try Again →</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.secondaryBtn}
+          onPress={() => navigation.navigate('MainTabs', { screen: 'Subjects' })}
+        >
+          <Text style={styles.secondaryBtnText}>Study Weak Areas</Text>
+        </TouchableOpacity>
+
+        <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f9f8ff',
-  },
-  container: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: '#0a7c4f',
-    marginBottom: 18,
-  },
-  card: {
-    backgroundColor: '#fff',
-    padding: 22,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#dbe9de',
-    marginBottom: 18,
+  root: { flex: 1, backgroundColor: '#ffffff' },
+  header: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#dde3ef',
     alignItems: 'center',
   },
-  cardLabel: {
-    color: '#666',
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  cardValue: {
-    fontSize: 40,
-    fontWeight: '900',
-    color: '#0a7c4f',
-  },
-  cardPercent: {
-    marginTop: 8,
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0a7c4f',
-  },
-  predictedCard: {
-    backgroundColor: '#fff7e0',
-    padding: 22,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#f5a623',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  predictedLabel: {
-    color: '#7a4c09',
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  predictedValue: {
-    fontSize: 54,
-    fontWeight: '900',
-    color: '#7a4c09',
-  },
-  section: {
-    marginBottom: 22,
-  },
-  subjectCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 18,
-    marginBottom: 12,
-  },
-  subjectHeader: {
-    flexDirection: 'row',
+  headerTitle: { fontSize: 17, fontWeight: '800', color: '#1b2a4a' },
+
+  container: { padding: 16 },
+
+  // Hero
+  heroCard: {
+    backgroundColor: '#1b2a4a',
+    borderRadius: 20,
+    padding: 28,
     alignItems: 'center',
     marginBottom: 14,
   },
-  subjectEmoji: {
-    fontSize: 22,
-    marginRight: 10,
+  heroEmoji: { fontSize: 40, marginBottom: 10 },
+  heroScore: { color: '#ffffff', fontSize: 44, fontWeight: '900', lineHeight: 48 },
+  heroPercent: { color: '#b0bfd8', fontSize: 18, fontWeight: '700', marginBottom: 14 },
+  gradeBadge: {
+    paddingHorizontal: 18, paddingVertical: 7, borderRadius: 999,
   },
-  subjectName: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  subjectScore: {
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  subjectPercent: {
-    fontSize: 16,
-    fontWeight: '800',
-    marginTop: 6,
-  },
-  motivationBox: {
-    backgroundColor: '#ffffff',
-    padding: 18,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#d6d1ff',
-    marginBottom: 24,
-  },
-  motivationText: {
-    color: '#3d2d6d',
-    fontSize: 16,
-    lineHeight: 24,
-    textAlign: 'center',
-    fontWeight: '700',
-  },
-  actionBtn: {
-    backgroundColor: '#0a7c4f',
-    borderRadius: 18,
-    paddingVertical: 16,
+  gradeText: { fontWeight: '800', fontSize: 14 },
+
+  // Predicted
+  predictedCard: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f4f6fb',
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#dde3ef',
+    marginBottom: 20,
   },
-  actionText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '800',
+  predictedLabel: { fontSize: 14, fontWeight: '800', color: '#1b2a4a' },
+  predictedSub: { fontSize: 12, color: '#6b7c9a', marginTop: 2 },
+  predictedValue: { fontSize: 38, fontWeight: '900', color: '#1b2a4a' },
+  predictedMax: { fontSize: 16, color: '#6b7c9a' },
+
+  // Subjects
+  sectionLabel: { fontSize: 13, fontWeight: '700', color: '#6b7c9a', marginBottom: 12 },
+  subjectRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#f4f6fb',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#dde3ef',
+    gap: 12,
   },
+  subjectEmoji: { fontSize: 24, marginTop: 2 },
+  subjectInfo: { flex: 1 },
+  subjectTopRow: {
+    flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8,
+  },
+  subjectName: { fontWeight: '800', color: '#1b2a4a', fontSize: 14 },
+  subjectScore: { fontWeight: '700', color: '#6b7c9a', fontSize: 14 },
+  subjectBarBg: {
+    height: 6, backgroundColor: '#dde3ef', borderRadius: 999, overflow: 'hidden', marginBottom: 6,
+  },
+  subjectBarFill: { height: 6, borderRadius: 999 },
+  subjectPercent: { fontSize: 12, fontWeight: '700' },
+
+  // Motivation
+  motivationCard: {
+    backgroundColor: '#f4f6fb',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#dde3ef',
+  },
+  motivationText: { color: '#1b2a4a', fontSize: 14, lineHeight: 22, fontWeight: '600', textAlign: 'center' },
+
+  // Buttons
+  primaryBtn: {
+    backgroundColor: '#1b2a4a',
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  primaryBtnText: { color: '#ffffff', fontWeight: '800', fontSize: 15 },
+  secondaryBtn: {
+    backgroundColor: '#f4f6fb',
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#dde3ef',
+  },
+  secondaryBtnText: { color: '#1b2a4a', fontWeight: '700', fontSize: 15 },
 });

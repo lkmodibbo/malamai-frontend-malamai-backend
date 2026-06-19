@@ -12,9 +12,9 @@ export default function HomeReviewCard({ dueCount = 0, onPress }) {
           <Text style={styles.title}>Review Due</Text>
           <Text style={styles.subtitle}>You have {dueCount} questions to review today</Text>
         </View>
-      </View>
-      <View style={styles.badgeContainer}>
-        <Text style={styles.badge}>{dueCount}</Text>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{dueCount}</Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -22,21 +22,17 @@ export default function HomeReviewCard({ dueCount = 0, onPress }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#0a7c4f',
-    padding: 18,
-    borderRadius: 18,
-    marginBottom: 18,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 4,
+    backgroundColor: '#1b2a4a',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 14,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   icon: {
-    fontSize: 28,
+    fontSize: 26,
     marginRight: 12,
   },
   textBlock: {
@@ -45,25 +41,22 @@ const styles = StyleSheet.create({
   title: {
     color: '#ffffff',
     fontWeight: '800',
-    fontSize: 16,
-    marginBottom: 4,
+    fontSize: 15,
+    marginBottom: 3,
   },
   subtitle: {
-    color: '#d7f7e2',
-    fontSize: 14,
-  },
-  badgeContainer: {
-    marginTop: 14,
-    alignSelf: 'flex-start',
+    color: '#b0bfd8',
+    fontSize: 13,
   },
   badge: {
-    backgroundColor: '#f5a623',
-    color: '#0a7c4f',
-    fontWeight: '800',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderRadius: 999,
-    overflow: 'hidden',
+  },
+  badgeText: {
+    color: '#ffffff',
+    fontWeight: '800',
     fontSize: 14,
   },
 });

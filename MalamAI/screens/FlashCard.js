@@ -56,13 +56,13 @@ export default function FlashCard({ card, subjectEmoji, flipped, onFlip }) {
 
 const styles = StyleSheet.create({
   cardWrapper: {
-    width: '100%',
-    minHeight: 360,
+    width: '90%',
+    minHeight: 200,
     borderRadius: 20,
     backgroundColor: '#ffffff',
     borderWidth: 2,
     borderColor: '#0a7c4f',
-    padding: 24,
+    padding: 14,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 300,
     borderRadius: 20,
-    padding: 20,
+    padding: 10,
     backfaceVisibility: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
@@ -91,16 +91,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#e4f5ec',
   },
   cardTitle: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: '900',
     color: '#0a7c4f',
     textAlign: 'center',
-    marginBottom: 18,
+    marginBottom: 10,
   },
   cardHint: {
-    marginTop: 12,
+    marginTop: 10,
     color: '#7a7a7a',
-    fontSize: 14,
+    fontSize: 16,
   },
   backText: {
     fontSize: 18,
@@ -110,10 +110,10 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
   memoryTip: {
-    marginTop: 18,
+    marginTop: 10,
     color: '#b46a08',
     fontStyle: 'italic',
     textAlign: 'center',
-    fontSize: 14,
+    fontSize: 19,
   },
 });

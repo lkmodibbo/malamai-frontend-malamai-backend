@@ -15,6 +15,7 @@ function parseProfile(raw) {
         ? parsed.selectedSubjects
         : ['english'],
       examDate: parsed.examDate ? new Date(parsed.examDate) : null,
+      avatarUri: parsed.avatarUri || null,
     };
   } catch (error) {
     console.warn('[useStudentProfile] parseProfile failed', error);
@@ -40,12 +41,16 @@ export async function saveProfile(profile) {
         ? profile.selectedSubjects
         : ['english'],
       examDate: profile.examDate instanceof Date ? profile.examDate.toISOString() : new Date(profile.examDate).toISOString(),
+      avatarUri: profile.avatarUri || null,
     };
     await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(normalized));
+    // Keep the dedicated exam_date key in sync so useExamCountdown picks it up immediately
+    await AsyncStorage.setItem('exam_date', normalized.examDate);
     return {
       name: normalized.name,
       selectedSubjects: normalized.selectedSubjects,
       examDate: new Date(normalized.examDate),
+      avatarUri: normalized.avatarUri,
     };
   } catch (error) {
     console.warn('[useStudentProfile] saveProfile failed', error);

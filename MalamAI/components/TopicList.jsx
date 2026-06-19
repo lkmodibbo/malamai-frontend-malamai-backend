@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { COLORS } from '../constants/colors';
 
 export default function TopicList({ subjectName, topics = [], onSelectTopic }) {
 	const [showTopics, setShowTopics] = useState(false);
@@ -46,24 +47,24 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 4,
 	},
 	headerButton: {
-		backgroundColor: '#0a7c4f',
+		backgroundColor: COLORS.primary,
 		borderRadius: 12,
 		paddingVertical: 13,
 		paddingHorizontal: 16,
 		flexDirection: 'row',
 		alignItems: 'center',
 		justifyContent: 'space-between',
-		shadowColor: '#000',
+		shadowColor: COLORS.shadow,
 		shadowOpacity: 0.08,
 		shadowRadius: 6,
 	},
 	header: {
-		color: '#fff',
+		color: COLORS.textWhite,
 		fontWeight: '700',
 		fontSize: 14
 	},
 	arrow: {
-		color: '#f5a623',
+		color: COLORS.accent,
 		fontWeight: '800',
 		fontSize: 13
 	},
@@ -72,17 +73,17 @@ const styles = StyleSheet.create({
 		marginTop: 8,
 	},
 	item: {
-		backgroundColor: '#fff',
+		backgroundColor: COLORS.surface,
 		paddingVertical: 12,
 		paddingHorizontal: 14,
 		borderRadius: 12,
 		marginBottom: 8,
-		shadowColor: '#000',
+		shadowColor: COLORS.shadow,
 		shadowOpacity: 0.06,
 		shadowRadius: 6,
 	},
 	itemText: {
-		color: '#0a7c4f',
+		color: COLORS.secondary,
 		fontWeight: '600'
 	},
 	emptyContainer: {
@@ -90,6 +91,6 @@ const styles = StyleSheet.create({
 		alignItems: 'center'
 	},
 	emptyText: {
-		color: '#666'
+		color: COLORS.textMuted
 	}
 });

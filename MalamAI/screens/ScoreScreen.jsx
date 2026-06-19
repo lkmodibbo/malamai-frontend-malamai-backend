@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { callGemini, buildWhyWrongPrompt } from '../src/utils/gemini';
+import { callGrok, getStepByStepPrompt, buildWhyWrongPrompt } from '../src/utils/grok';
+import { COLORS } from '../constants/colors';
 
 export default function ScoreScreen({ route, navigation }) {
   const { score = 0, total = 0, weakTopics = [], review = [], motivation } = route.params || {};
@@ -44,7 +45,7 @@ export default function ScoreScreen({ route, navigation }) {
         correctText,
       );
 
-      const text = await callGemini(prompt);
+      const text = await callGrok(prompt);
       setWhyWrongResponses((prev) => ({ ...prev, [key]: text }));
     } catch (err) {
       console.warn('[ScoreScreen] fetch why-wrong failed', err);
@@ -77,7 +78,7 @@ export default function ScoreScreen({ route, navigation }) {
   const motivationText = motivation || `${message} ${hausa}`;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f2f5f3' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Final Score</Text>
 
@@ -137,7 +138,7 @@ export default function ScoreScreen({ route, navigation }) {
                     <View style={styles.feedbackContainer}>
                       {loadingWhyWrong[getFeedbackKey(item, index)] ? (
                         <View style={styles.feedbackLoadingRow}>
-                          <ActivityIndicator size="small" color="#0a7c4f" style={styles.feedbackLoader} />
+                          <ActivityIndicator size="small" color={COLORS.primary} style={styles.feedbackLoader} />
                           <Text style={styles.feedbackLoadingText}>Malam AI is thinking…</Text>
                         </View>
                       ) : whyWrongErrors[getFeedbackKey(item, index)] ? (
@@ -172,7 +173,7 @@ export default function ScoreScreen({ route, navigation }) {
           </View>
         )}
 
-        <TouchableOpacity style={styles.btn} onPress={() => navigation.navigate('Subjects')}>
+        <TouchableOpacity style={styles.btn} onPress={() => navigation.navigate('MainTabs', { screen: 'Subjects' })}>
           <Text style={styles.btnText}>Study Another Topic</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -188,11 +189,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#0a7c4f',
+    color: COLORS.primary,
   },
   scoreBox: {
     marginTop: 16,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.surface,
     padding: 24,
     borderRadius: 16,
     alignItems: 'center',
@@ -201,16 +202,16 @@ const styles = StyleSheet.create({
   scoreText: {
     fontSize: 40,
     fontWeight: '900',
-    color: '#0a7c4f',
+    color: COLORS.primary,
   },
   percentText: {
     marginTop: 8,
     fontSize: 18,
-    color: '#666',
+    color: COLORS.textMuted,
   },
   motivation: {
     marginTop: 18,
-    color: '#333',
+    color: COLORS.textPrimary,
     lineHeight: 22,
     textAlign: 'center',
     fontSize: 15,
@@ -221,11 +222,11 @@ const styles = StyleSheet.create({
   },
   weakText: {
     marginTop: 6,
-    color: '#333',
+    color: COLORS.textPrimary,
   },
   sectionTitle: {
     fontWeight: '800',
-    color: '#0a7c4f',
+    color: COLORS.primary,
     fontSize: 16,
     marginBottom: 8,
   },
@@ -234,36 +235,36 @@ const styles = StyleSheet.create({
     marginTop: 22,
   },
   reviewCard: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.surface,
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#d0e8dc',
+    borderColor: COLORS.border,
   },
   reviewNumber: {
-    color: '#0a7c4f',
+    color: COLORS.primary,
     fontWeight: '800',
     marginBottom: 6,
   },
   reviewQuestion: {
-    color: '#222',
+    color: COLORS.textPrimary,
     fontWeight: '700',
     lineHeight: 20,
     marginBottom: 10,
   },
   correctText: {
-    color: '#0a7c4f',
+    color: COLORS.correct,
     fontWeight: '700',
     marginTop: 4,
   },
   wrongText: {
-    color: '#b00020',
+    color: COLORS.wrong,
     fontWeight: '700',
     marginTop: 4,
   },
   explanation: {
-    color: '#555',
+    color: COLORS.textMuted,
     lineHeight: 20,
     marginTop: 8,
   },
@@ -272,13 +273,13 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   showWorkingText: {
-    color: '#0a7c4f',
+    color: COLORS.primary,
     fontWeight: '700',
     fontSize: 14,
   },
   feedbackContainer: {
     marginTop: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.surface,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
@@ -292,7 +293,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   feedbackLoadingText: {
-    color: '#0a7c4f',
+    color: COLORS.primary,
     fontWeight: '700',
   },
   feedbackRow: {
@@ -314,10 +315,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#1d7d34',
   },
   feedbackDotAmber: {
-    backgroundColor: '#f5a623',
+    backgroundColor: COLORS.accent,
   },
   feedbackText: {
-    color: '#333',
+    color: COLORS.textPrimary,
     lineHeight: 20,
     flex: 1,
   },
@@ -326,12 +327,12 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   collapseText: {
-    color: '#0a7c4f',
+    color: COLORS.primary,
     fontWeight: '700',
   },
   workingContainer: {
     marginTop: 12,
-    backgroundColor: '#e4f5ec',
+    backgroundColor: COLORS.correctBg,
     borderRadius: 14,
     padding: 14,
   },
@@ -343,19 +344,19 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   workingError: {
-    color: '#b00020',
+    color: COLORS.wrong,
     fontWeight: '700',
     lineHeight: 20,
   },
   btn: {
     marginTop: 24,
-    backgroundColor: '#0a7c4f',
+    backgroundColor: COLORS.primary,
     paddingVertical: 14,
     paddingHorizontal: 28,
     borderRadius: 30,
   },
   btnText: {
-    color: '#fff',
+    color: COLORS.textWhite,
     fontWeight: '800',
   },
 });

@@ -1,87 +1,114 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function ChatBubble({ message, isUser, onSaveNote }) {
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = async () => {
+    if (saved || !onSaveNote) return;
+    await onSaveNote();
+    setSaved(true);
+  };
+
   return (
-    <View style={[styles.container, isUser ? styles.userRow : styles.aiRow]}>
+    <View style={[styles.row, isUser ? styles.userRow : styles.aiRow]}>
       {!isUser && (
-        <View style={styles.avatarWrapper}>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>M</Text>
-          </View>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>M</Text>
         </View>
       )}
 
       <View style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}>
-        <Text style={[styles.messageText, isUser ? styles.userText : styles.aiText]}>{message}</Text>
-        {!isUser && onSaveNote ? (
-          <TouchableOpacity style={styles.saveButton} onPress={onSaveNote} activeOpacity={0.7}>
-            <Text style={styles.saveText}>📋 Save as note</Text>
+        <Text style={[styles.text, isUser ? styles.userText : styles.aiText]}>
+          {message}
+        </Text>
+
+        {!isUser && onSaveNote && (
+          <TouchableOpacity
+            style={[styles.saveBtn, saved && styles.saveBtnDone]}
+            onPress={handleSave}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.saveBtnText, saved && styles.saveBtnTextDone]}>
+              {saved ? '✓ Saved to notes' : '📋 Save as note'}
+            </Text>
           </TouchableOpacity>
-        ) : null}
+        )}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-    marginVertical: 6,
+  row: {
     flexDirection: 'row',
     alignItems: 'flex-end',
+    marginVertical: 5,
+    width: '100%',
   },
-  userRow: {
-    justifyContent: 'flex-end',
-  },
-  aiRow: {
-    justifyContent: 'flex-start',
-  },
-  avatarWrapper: {
-    marginRight: 10,
-  },
-  avatarCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#e9f3e9',
+  userRow: { justifyContent: 'flex-end' },
+  aiRow: { justifyContent: 'flex-start' },
+
+  avatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#1b2a4a',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#c5d8c4',
+    marginRight: 8,
+    flexShrink: 0,
   },
   avatarText: {
-    color: '#0a7c4f',
+    color: '#ffffff',
     fontWeight: '900',
+    fontSize: 14,
   },
+
   bubble: {
-    maxWidth: '82%',
+    maxWidth: '80%',
     borderRadius: 18,
-    padding: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
   aiBubble: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f4f6fb',
     borderWidth: 1,
-    borderColor: '#d0e8dc',
+    borderColor: '#dde3ef',
+    borderBottomLeftRadius: 4,
   },
   userBubble: {
-    backgroundColor: '#0a7c4f',
+    backgroundColor: '#1b2a4a',
+    borderBottomRightRadius: 4,
   },
-  messageText: {
+
+  text: {
     fontSize: 15,
     lineHeight: 22,
   },
-  aiText: {
-    color: '#24352d',
+  aiText: { color: '#1b2a4a' },
+  userText: { color: '#ffffff' },
+
+  saveBtn: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#dde3ef',
+    backgroundColor: '#ffffff',
   },
-  userText: {
-    color: '#ffffff',
+  saveBtnDone: {
+    borderColor: '#27ae60',
+    backgroundColor: '#eafaf1',
   },
-  saveButton: {
-    marginTop: 12,
-  },
-  saveText: {
-    color: '#0a7c4f',
+  saveBtnText: {
+    color: '#6b7c9a',
     fontWeight: '700',
+    fontSize: 12,
+  },
+  saveBtnTextDone: {
+    color: '#27ae60',
   },
 });

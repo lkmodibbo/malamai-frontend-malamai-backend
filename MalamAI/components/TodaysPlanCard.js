@@ -7,7 +7,7 @@ function normalizeKey(subjectId, topic) {
 }
 
 function getSubjectByIdOrName(subjectId, subjectName) {
-  return SUBJECTS.find((subject) => subject.id === subjectId || subject.name === subjectName);
+  return SUBJECTS.find((s) => s.id === subjectId || s.name === subjectName);
 }
 
 function buildSuggestions(weakTopics = [], visitedTopics = []) {
@@ -15,33 +15,19 @@ function buildSuggestions(weakTopics = [], visitedTopics = []) {
   const visitedKeys = new Set(visitedTopics.map((item) => String(item || '').trim().toLowerCase()));
   const suggestions = [];
 
-  function pushSuggestion(subjectId, subjectName, topic) {
+  function push(subjectId, subjectName, topic) {
     const key = normalizeKey(subjectId, topic);
-    if (!topic || seenKeys.has(key)) return;
-    if (visitedKeys.has(key)) return;
+    if (!topic || seenKeys.has(key) || visitedKeys.has(key)) return;
     const subject = getSubjectByIdOrName(subjectId, subjectName);
     suggestions.push({ subjectId, subjectName, topic, emoji: subject?.emoji || '📘' });
     seenKeys.add(key);
   }
 
-  weakTopics.forEach((item) => {
-    if (!item || !item.topic) return;
-    pushSuggestion(item.subjectId, item.subjectName, item.topic);
-  });
+  weakTopics.forEach((item) => { if (item?.topic) push(item.subjectId, item.subjectName, item.topic); });
 
-  if (suggestions.length >= 2) return suggestions.slice(0, 2);
-
-  SUBJECTS.forEach((subject) => {
-    subject.topics.forEach((topic) => {
-      if (suggestions.length >= 2) return;
-      pushSuggestion(subject.id, subject.name, topic);
-    });
-  });
-
-  if (suggestions.length === 0) {
-    SUBJECTS.slice(0, 2).forEach((subject) => {
-      if (suggestions.length >= 2) return;
-      pushSuggestion(subject.id, subject.name, subject.topics[0]);
+  if (suggestions.length < 2) {
+    SUBJECTS.forEach((s) => {
+      s.topics.forEach((t) => { if (suggestions.length < 2) push(s.id, s.name, t); });
     });
   }
 
@@ -51,20 +37,20 @@ function buildSuggestions(weakTopics = [], visitedTopics = []) {
 export default function TodaysPlanCard({ weakTopics = [], visitedTopics = [], onStudyNow }) {
   const suggestions = useMemo(
     () => buildSuggestions(weakTopics, visitedTopics),
-    [weakTopics, visitedTopics]
+    [weakTopics, visitedTopics],
   );
 
   return (
     <View style={styles.card}>
       <Text style={styles.header}>📅 Today's Plan</Text>
       {suggestions.length === 0 ? (
-        <Text style={styles.emptyText}>All topics are covered for today. Check your subjects and continue learning.</Text>
+        <Text style={styles.emptyText}>All topics covered for today. Keep it up!</Text>
       ) : (
-        suggestions.map((suggestion, index) => (
-          <View key={`${suggestion.subjectId}-${suggestion.topic}-${index}`} style={styles.row}>
-            <Text style={styles.topicLabel}>{suggestion.emoji} {suggestion.topic}</Text>
-            <TouchableOpacity onPress={() => onStudyNow(suggestion)}>
-              <Text style={styles.studyLink}>Study now →</Text>
+        suggestions.map((s, i) => (
+          <View key={`${s.subjectId}-${s.topic}-${i}`} style={styles.row}>
+            <Text style={styles.topicLabel}>{s.emoji} {s.topic}</Text>
+            <TouchableOpacity style={styles.studyBtn} onPress={() => onStudyNow(s)}>
+              <Text style={styles.studyBtnText}>Study →</Text>
             </TouchableOpacity>
           </View>
         ))
@@ -77,19 +63,17 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
-    marginBottom: 12,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#dde3ef',
   },
   header: {
-    color: '#0a7c4f',
-    fontSize: 18,
+    color: '#1b2a4a',
+    fontSize: 15,
     fontWeight: '800',
-    marginBottom: 14,
+    marginBottom: 12,
   },
   row: {
     flexDirection: 'row',
@@ -97,23 +81,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#edf1ea',
+    borderBottomColor: '#eaeef6',
   },
   topicLabel: {
-    color: '#0a7c4f',
-    fontSize: 12,
-    fontWeight: '700',
+    color: '#1b2a4a',
+    fontSize: 13,
+    fontWeight: '600',
     flex: 1,
     marginRight: 12,
   },
-  studyLink: {
-    color: '#f5a623',
-    fontWeight: '800',
+  studyBtn: {
+    backgroundColor: '#1b2a4a',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+  },
+  studyBtnText: {
+    color: '#ffffff',
+    fontWeight: '700',
     fontSize: 12,
   },
   emptyText: {
-    color: '#556c58',
-    fontSize: 12,
-    lineHeight: 18,
+    color: '#6b7c9a',
+    fontSize: 13,
+    lineHeight: 20,
   },
 });

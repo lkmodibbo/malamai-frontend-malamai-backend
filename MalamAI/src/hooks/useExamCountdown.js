@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const EXAM_DATE_KEY = 'exam_date';
 const EXAM_START_KEY = 'exam_start_date';
+const PROFILE_KEY = 'student_profile';
 const MS_PER_DAY = 86400000;
 
 async function getStoredDate(key) {
@@ -17,11 +18,35 @@ async function getStoredDate(key) {
   }
 }
 
+async function getExamDateFromProfile() {
+  try {
+    const raw = await AsyncStorage.getItem(PROFILE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.examDate) return null;
+    const date = new Date(parsed.examDate);
+    return Number.isNaN(date.getTime()) ? null : date;
+  } catch {
+    return null;
+  }
+}
+
 async function persistDate(key, date) {
   try {
     await AsyncStorage.setItem(key, date.toISOString());
   } catch (error) {
     console.warn('[useExamCountdown] failed to save date', error);
+  }
+}
+
+async function persistDateToProfile(date) {
+  try {
+    const raw = await AsyncStorage.getItem(PROFILE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    parsed.examDate = date.toISOString();
+    await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(parsed));
+  } catch (error) {
+    console.warn('[useExamCountdown] failed to sync date to profile', error);
   }
 }
 
@@ -31,8 +56,15 @@ export default function useExamCountdown() {
   const [loading, setLoading] = useState(true);
 
   const loadDates = useCallback(async () => {
-    const storedExam = await getStoredDate(EXAM_DATE_KEY);
+    // Try dedicated key first, fall back to student_profile
+    const storedExam = (await getStoredDate(EXAM_DATE_KEY)) || (await getExamDateFromProfile());
     const storedStart = await getStoredDate(EXAM_START_KEY);
+
+    // If we found a date in profile but not in the dedicated key, backfill it
+    if (storedExam && !(await getStoredDate(EXAM_DATE_KEY))) {
+      await persistDate(EXAM_DATE_KEY, storedExam);
+    }
+
     setExamDateState(storedExam);
     setStartDateState(storedStart);
     setLoading(false);
@@ -49,7 +81,9 @@ export default function useExamCountdown() {
     }
 
     const existingStart = startDate || new Date();
+    // Write to both keys so both hooks stay in sync
     await persistDate(EXAM_DATE_KEY, parsed);
+    await persistDateToProfile(parsed);
     if (!startDate) {
       await persistDate(EXAM_START_KEY, existingStart);
     }
@@ -60,9 +94,11 @@ export default function useExamCountdown() {
 
   const daysRemaining = useMemo(() => {
     if (!examDate) return null;
+    const exam = new Date(examDate);
     const now = new Date();
-    const diff = examDate.setHours(0, 0, 0, 0) - now.setHours(0, 0, 0, 0);
-    return Math.ceil(diff / MS_PER_DAY);
+    exam.setHours(0, 0, 0, 0);
+    now.setHours(0, 0, 0, 0);
+    return Math.ceil((exam.getTime() - now.getTime()) / MS_PER_DAY);
   }, [examDate]);
 
   const progressPercent = useMemo(() => {

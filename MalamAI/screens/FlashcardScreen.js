@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, PanResponder } from 'react-native';
 import FlashCard from './FlashCard';
-import { callGemini, parseQuestionJson, buildFlashcardPrompt } from '../src/utils/gemini';
+import { callGrok, parseQuestionJson, buildFlashcardPrompt } from '../src/utils/grok';
 
 function extractCardTip(rawBack) {
   const cleaned = String(rawBack || '').trim();
@@ -46,12 +46,12 @@ export default function FlashcardScreen({ subject, topic, startPractice }) {
 
     try {
       const prompt = buildFlashcardPrompt(displayTopic, subjectName);
-      const response = await callGemini(prompt);
+      const response = await callGrok(prompt);
       const parsed = parseQuestionJson(response);
       const cards = Array.isArray(parsed?.cards) ? parsed.cards : [];
 
       if (cards.length === 0) {
-        throw new Error('Gemini did not return any flashcards.');
+        throw new Error('Grok did not return any flashcards.');
       }
 
       const normalized = cards.slice(0, 8).map((card) => {
@@ -122,7 +122,7 @@ export default function FlashcardScreen({ subject, topic, startPractice }) {
     return (
       <View style={styles.completionContainer}>
         <Text style={styles.trophy}>🏆</Text>
-        <Text style={styles.completionTitle}>Ka yi kyau! All cards done!</Text>
+        <Text style={styles.completionTitle}>Ya yi kyau! All cards done!</Text>
         <TouchableOpacity style={styles.practiceBtn} onPress={startPractice}>
           <Text style={styles.practiceBtnText}>Start Practice Quiz</Text>
         </TouchableOpacity>
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 420,
+    minHeight: 400,
   },
   controlsRow: {
     width: '100%',

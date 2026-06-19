@@ -11,24 +11,21 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { callGeminiMultiTurn } from '../src/utils/gemini';
+import { callGrokMultiTurn } from '../src/utils/grok';
 import useNotes from '../src/hooks/useNotes';
 import ChatBubble from '../components/ChatBubble';
 import TypingIndicator from '../components/TypingIndicator';
 
-const suggestedQuestions = [
+const SUGGESTED = [
   'Explain photosynthesis',
   'Solve quadratic equations',
   'JAMB English tips',
-  'Difference between speed and velocity',
-  'Causes of the Nigerian Civil War',
+  'Speed vs velocity',
+  'Causes of Nigerian Civil War',
+  'What is osmosis?',
 ];
 
-const DEFAULT_SUBJECT = {
-  id: 'chat',
-  name: 'Malam AI Chat',
-  emoji: '📚',
-};
+const DEFAULT_SUBJECT = { id: 'chat', name: 'Malam AI Chat', emoji: '🤖' };
 
 export default function ChatScreen() {
   const [messages, setMessages] = useState([]);
@@ -39,9 +36,7 @@ export default function ChatScreen() {
   const { saveNote } = useNotes();
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollToEnd({ animated: true });
-    }
+    scrollRef.current?.scrollToEnd({ animated: true });
   }, [messages, loading]);
 
   const submitMessage = useCallback(async (text) => {
@@ -55,84 +50,100 @@ export default function ChatScreen() {
     setLoading(true);
 
     try {
-      const aiResponse = await callGeminiMultiTurn(nextMessages);
+      const aiResponse = await callGrokMultiTurn(nextMessages);
       setMessages((prev) => [...prev, { role: 'assistant', content: aiResponse }]);
     } catch (err) {
-      console.warn('[ChatScreen] Gemini failure', err);
-      const message = err?.message || 'Unable to reach Malam AI.';
-      setError(message);
-      Alert.alert('Chat failed', 'Unable to get an answer. Please try again.');
+      console.warn('[ChatScreen] AI failure', err);
+      setError('Unable to reach Malam AI. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
   }, [loading, messages]);
 
-  const handleSend = () => submitMessage(inputText);
-
-  const handleSuggestedPress = (question) => submitMessage(question);
-
   const handleSaveAsNote = async (messageText) => {
-    const snippet = String(messageText || '').trim().slice(0, 40);
-    const topic = snippet ? `Malam AI answer: ${snippet}` : 'Malam AI answer';
-
+    const snippet = String(messageText || '').trim().slice(0, 50);
+    const topic = snippet ? `AI: ${snippet}…` : 'Malam AI answer';
     try {
       await saveNote(DEFAULT_SUBJECT, topic, messageText);
-      Alert.alert('Saved', 'This AI message was saved to your notes.');
-    } catch (saveError) {
-      console.warn('[ChatScreen] save note failed', saveError);
-      Alert.alert('Unable to save', 'Please try again later.');
+      Alert.alert('Saved ✓', 'This answer has been saved to your notes.');
+    } catch {
+      Alert.alert('Save failed', 'Please try again.');
     }
   };
 
+  const clearChat = () => {
+    setMessages([]);
+    setError('');
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.root}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 70}
       >
+        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Crack Jamb AI</Text>
-          <Text style={styles.headerSubtitle}>Ask any JAMB question and get simple tutor-style help.</Text>
+          <View style={styles.headerLeft}>
+            <View style={styles.headerAvatar}>
+              <Text style={styles.headerAvatarText}>M</Text>
+            </View>
+            <View>
+              <Text style={styles.headerTitle}>Malam AI</Text>
+              <Text style={styles.headerStatus}>
+                {loading ? 'Typing…' : 'JAMB Tutor'}
+              </Text>
+            </View>
+          </View>
+          {messages.length > 0 && (
+            <TouchableOpacity onPress={clearChat} style={styles.clearBtn}>
+              <Text style={styles.clearBtnText}>Clear</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
+        {/* Messages */}
         <ScrollView
           ref={scrollRef}
           contentContainerStyle={styles.messagesContainer}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {messages.length === 0 ? (
-            <View style={styles.emptyState}> 
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarInitial}>M</Text>
+            <View style={styles.emptyState}>
+              <View style={styles.emptyAvatar}>
+                <Text style={styles.emptyAvatarText}>🤖</Text>
               </View>
-              <Text style={styles.emptyTitle}>Ask me anything about JAMB!</Text>
-              <Text style={styles.emptySubtitle}>Nagode.</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.suggestedRow}
-              >
-                {suggestedQuestions.map((question) => (
+              <Text style={styles.emptyTitle}>Ask me anything about JAMB</Text>
+              <Text style={styles.emptySubtitle}>
+                I can explain topics, solve problems, and help you prepare.{'\n'}
+                Nagode — let's get started!
+              </Text>
+              <Text style={styles.suggestedLabel}>Try asking:</Text>
+              <View style={styles.suggestedGrid}>
+                {SUGGESTED.map((q) => (
                   <TouchableOpacity
-                    key={question}
+                    key={q}
                     style={styles.suggestedChip}
-                    onPress={() => handleSuggestedPress(question)}
+                    onPress={() => submitMessage(q)}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.suggestedText}>{question}</Text>
+                    <Text style={styles.suggestedText}>{q}</Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </View>
             </View>
           ) : (
             <View style={styles.chatColumn}>
-              {messages.map((message, index) => (
+              {messages.map((msg, i) => (
                 <ChatBubble
-                  key={`${message.role}-${index}-${String(message.content).slice(0, 20)}`}
-                  message={message.content}
-                  isUser={message.role === 'user'}
-                  onSaveNote={message.role === 'assistant' ? () => handleSaveAsNote(message.content) : undefined}
+                  key={`${msg.role}-${i}`}
+                  message={msg.content}
+                  isUser={msg.role === 'user'}
+                  onSaveNote={msg.role === 'assistant'
+                    ? () => handleSaveAsNote(msg.content)
+                    : undefined}
                 />
               ))}
               {loading && (
@@ -142,22 +153,33 @@ export default function ChatScreen() {
               )}
             </View>
           )}
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+          {error ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
         </ScrollView>
 
+        {/* Input bar */}
         <View style={styles.inputBar}>
           <TextInput
             style={styles.input}
-            placeholder="Type your JAMB question..."
-            placeholderTextColor="#8f9b8b"
+            placeholder="Ask a JAMB question…"
+            placeholderTextColor="#8ba3c7"
             value={inputText}
             onChangeText={setInputText}
             returnKeyType="send"
-            onSubmitEditing={handleSend}
+            onSubmitEditing={() => submitMessage(inputText)}
             multiline
           />
-          <TouchableOpacity style={styles.sendButton} onPress={handleSend} activeOpacity={0.8}>
-            <Text style={styles.sendIcon}>→</Text>
+          <TouchableOpacity
+            style={[styles.sendBtn, (!inputText.trim() || loading) && styles.sendBtnDisabled]}
+            onPress={() => submitMessage(inputText)}
+            disabled={!inputText.trim() || loading}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.sendIcon}>↑</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -166,127 +188,186 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f2f5f3',
-  },
+  root: { flex: 1, backgroundColor: '#ffffff' },
+  flex: { flex: 1 },
+
+  // Header
   header: {
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#dde3ef',
+    backgroundColor: '#ffffff',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#1b2a4a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerAvatarText: {
+    color: '#ffffff',
+    fontWeight: '900',
+    fontSize: 18,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: '800',
-    color: '#0a7c4f',
+    color: '#1b2a4a',
   },
-  headerSubtitle: {
-    marginTop: 4,
-    color: '#4e5d4a',
-    fontSize: 14,
+  headerStatus: {
+    fontSize: 12,
+    color: '#6b7c9a',
+    marginTop: 1,
   },
+  clearBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#dde3ef',
+  },
+  clearBtnText: {
+    color: '#6b7c9a',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+
+  // Messages
   messagesContainer: {
-    paddingHorizontal: 18,
-    paddingBottom: 18,
+    padding: 16,
+    flexGrow: 1,
   },
   chatColumn: {
-    paddingBottom: 12,
+    paddingBottom: 8,
   },
+  typingWrapper: {
+    marginTop: 8,
+    alignItems: 'flex-start',
+  },
+
+  // Empty state
   emptyState: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 70,
+    paddingTop: 48,
     paddingHorizontal: 16,
   },
-  avatarCircle: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: '#ffffff',
+  emptyAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#f4f6fb',
     borderWidth: 1,
-    borderColor: '#d0e8dc',
+    borderColor: '#dde3ef',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 18,
+    marginBottom: 16,
   },
-  avatarInitial: {
-    fontSize: 34,
-    fontWeight: '900',
-    color: '#0a7c4f',
-  },
+  emptyAvatarText: { fontSize: 36 },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#2d3e2f',
+    color: '#1b2a4a',
     textAlign: 'center',
+    marginBottom: 8,
   },
   emptySubtitle: {
-    marginTop: 8,
-    color: '#6d7b69',
+    fontSize: 13,
+    color: '#6b7c9a',
     textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 28,
   },
-  suggestedRow: {
-    marginTop: 20,
-    paddingBottom: 10,
+  suggestedLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#6b7c9a',
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+  },
+  suggestedGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    width: '100%',
   },
   suggestedChip: {
-    backgroundColor: '#f5d58d',
+    backgroundColor: '#f4f6fb',
     borderRadius: 999,
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginRight: 10,
+    paddingVertical: 9,
     borderWidth: 1,
-    borderColor: '#f0c96a',
+    borderColor: '#dde3ef',
   },
   suggestedText: {
-    color: '#4f3b0f',
-    fontWeight: '700',
+    color: '#1b2a4a',
+    fontWeight: '600',
+    fontSize: 13,
   },
-  typingWrapper: {
-    marginTop: 10,
-    alignItems: 'flex-start',
+
+  // Error
+  errorBox: {
+    backgroundColor: '#fdf0f0',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#f5c6cb',
   },
+  errorText: {
+    color: '#c0392b',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+
+  // Input
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: '#d9e3d4',
+    borderTopColor: '#dde3ef',
     backgroundColor: '#ffffff',
+    gap: 8,
   },
   input: {
     flex: 1,
     minHeight: 44,
     maxHeight: 120,
-    borderRadius: 30,
-    backgroundColor: '#eef5ec',
-    color: '#232a22',
+    borderRadius: 22,
+    backgroundColor: '#f4f6fb',
+    borderWidth: 1,
+    borderColor: '#dde3ef',
+    color: '#1b2a4a',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 11,
     fontSize: 15,
   },
-  sendButton: {
-    width: 46,
-    height: 46,
-    marginLeft: 10,
-    borderRadius: 23,
-    backgroundColor: '#0a7c4f',
+  sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#1b2a4a',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  sendBtnDisabled: {
+    backgroundColor: '#c5cfe0',
+  },
   sendIcon: {
     color: '#ffffff',
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  errorText: {
-    color: '#b00020',
-    marginTop: 10,
-    textAlign: 'center',
-    paddingHorizontal: 18,
+    fontSize: 18,
+    fontWeight: '900',
   },
 });

@@ -17,21 +17,26 @@ export default function ExamCountdownCard({ daysRemaining, progressPercent, exam
       <View style={styles.topRow}>
         <Text style={styles.countdownText}>{examText}</Text>
         {!hasDate && (
-          <TouchableOpacity onPress={onSetDate}>
-            <Text style={styles.linkText}>Set exam date</Text>
+          <TouchableOpacity onPress={onSetDate} style={styles.setDateBtn}>
+            <Text style={styles.setDateText}>Set date →</Text>
           </TouchableOpacity>
         )}
       </View>
+      {hasDate && (
+        <Text style={styles.dateLabel}>
+          📅 {examDate instanceof Date ? examDate.toDateString() : new Date(examDate).toDateString()}
+        </Text>
+      )}
       {hasDate && daysRemaining >= 0 && (
         <View style={styles.progressBarBackground}>
           <View style={[styles.progressBarFill, { width: progressWidth }]} />
         </View>
       )}
       {hasDate && daysRemaining < 0 && (
-        <Text style={styles.arrivedText}>Your exam date is today or has passed.</Text>
+        <Text style={styles.subText}>Your exam date is today or has passed.</Text>
       )}
       {!hasDate && (
-        <Text style={styles.helpText}>Add your JAMB date so MalamAI can build a daily study plan.</Text>
+        <Text style={styles.subText}>Add your JAMB date so MalamAI can build a daily study plan.</Text>
       )}
     </View>
   );
@@ -40,14 +45,10 @@ export default function ExamCountdownCard({ daysRemaining, progressPercent, exam
 const styles = StyleSheet.create({
   card: {
     width: '100%',
-    backgroundColor: '#0a7c4f',
-    borderRadius: 20,
-    padding: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.16,
-    shadowRadius: 12,
-    elevation: 3,
-    marginBottom: 12,
+    backgroundColor: '#1b2a4a',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
   },
   topRow: {
     flexDirection: 'row',
@@ -56,36 +57,44 @@ const styles = StyleSheet.create({
   },
   countdownText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '900',
     flex: 1,
     marginRight: 10,
   },
-  linkText: {
-    color: '#f5a623',
-    fontWeight: '800',
+  setDateBtn: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  setDateText: {
+    color: '#ffffff',
+    fontWeight: '700',
     fontSize: 12,
   },
+  dateLabel: {
+    color: '#b0bfd8',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 6,
+  },
   progressBarBackground: {
-    height: 10,
-    backgroundColor: '#174b35',
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 999,
-    marginTop: 12,
+    marginTop: 14,
     overflow: 'hidden',
   },
   progressBarFill: {
-    height: 10,
-    backgroundColor: '#f5a623',
+    height: 8,
+    backgroundColor: '#ffffff',
     borderRadius: 999,
   },
-  arrivedText: {
-    color: '#d7f1dc',
-    marginTop: 12,
+  subText: {
+    color: '#b0bfd8',
+    marginTop: 10,
     fontSize: 12,
-  },
-  helpText: {
-    color: '#d7f1dc',
-    marginTop: 12,
-    fontSize: 12,
+    lineHeight: 18,
   },
 });

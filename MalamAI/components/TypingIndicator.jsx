@@ -2,70 +2,56 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 
 export default function TypingIndicator() {
-  const dotOne = useRef(new Animated.Value(0.35)).current;
-  const dotTwo = useRef(new Animated.Value(0.35)).current;
-  const dotThree = useRef(new Animated.Value(0.35)).current;
+  const dots = [
+    useRef(new Animated.Value(0)).current,
+    useRef(new Animated.Value(0)).current,
+    useRef(new Animated.Value(0)).current,
+  ];
 
   useEffect(() => {
-    const createPulse = (animatedValue, delay) => (
+    const animations = dots.map((dot, i) =>
       Animated.loop(
         Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(animatedValue, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-          Animated.timing(animatedValue, {
-            toValue: 0.35,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-          Animated.delay(120),
+          Animated.delay(i * 150),
+          Animated.timing(dot, { toValue: -6, duration: 250, useNativeDriver: true }),
+          Animated.timing(dot, { toValue: 0, duration: 250, useNativeDriver: true }),
+          Animated.delay(300),
         ]),
-      )
+      ),
     );
-
-    const animations = [
-      createPulse(dotOne, 0),
-      createPulse(dotTwo, 120),
-      createPulse(dotThree, 240),
-    ];
-
-    Animated.stagger(80, animations).start();
-  }, [dotOne, dotTwo, dotThree]);
+    animations.forEach((a) => a.start());
+    return () => animations.forEach((a) => a.stop());
+  }, []);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.bubble}>
-        <Animated.View style={[styles.dot, { transform: [{ scale: dotOne }] }]} />
-        <Animated.View style={[styles.dot, { transform: [{ scale: dotTwo }] }]} />
-        <Animated.View style={[styles.dot, { transform: [{ scale: dotThree }] }]} />
-      </View>
+    <View style={styles.bubble}>
+      {dots.map((dot, i) => (
+        <Animated.View
+          key={i}
+          style={[styles.dot, { transform: [{ translateY: dot }] }]}
+        />
+      ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    alignItems: 'flex-start',
-  },
   bubble: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    backgroundColor: '#f4f6fb',
+    borderRadius: 18,
+    borderBottomLeftRadius: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#d0e8dc',
+    borderColor: '#dde3ef',
+    gap: 5,
   },
   dot: {
-    width: 9,
-    height: 9,
-    marginHorizontal: 4,
-    borderRadius: 9,
-    backgroundColor: '#0a7c4f',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#1b2a4a',
   },
 });

@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StatusBar, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StatusBar, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import HomeWeaknessCard from '../components/HomeWeaknessCard';
 import ExamCountdownCard from '../components/ExamCountdownCard';
@@ -22,57 +22,39 @@ export default function LandingScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#0a7c4f' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#0a7c4f" />
+    <SafeAreaView style={styles.root}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
-      {/* Top decorative bar */}
-      <View style={{ height: 4, backgroundColor: '#f5a623' }} />
-
-      <ScrollView contentContainerStyle={{ padding: 10 }}>
-        <View style={{ alignItems: 'center', marginBottom: 8 }}>
-          <View style={{
-            width: 50, height: 50, borderRadius: 50,
-            backgroundColor: '#f5a623', alignItems: 'center',
-            justifyContent: 'center', marginBottom: 14,
-            shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10
-          }}>
-            <Text style={{ fontSize: 14 }}>🎓</Text>
-          </View>
-
-          <Text style={{
-            fontSize: 20, fontWeight: 'bold',
-            color: '#ffffff', letterSpacing: 2, marginBottom: 8
-          }}>
-            CrackJAMB
-          </Text>
-
-          <Text style={{
-            fontSize: 16, color: '#d4f1e4',
-            textAlign: 'center', marginBottom: 6
-          }}>
-            Your personal JAMB Tutor
-          </Text>
-
-          <Text style={{
-            fontSize: 14, color: '#f5a623',
-            textAlign: 'center', fontStyle: 'italic', marginBottom: 24
-          }}>
-            "Ilimi shine maɓallin nasara" — Knowledge is the key to success
-          </Text>
-
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Subjects')}
-            style={{
-              backgroundColor: '#f5a623', paddingVertical: 10,
-              paddingHorizontal: 20, borderRadius: 20,
-              shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8
-            }}>
-            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#0a7c4f' }}>
-              Fara Karatu — Start Studying
-            </Text>
-          </TouchableOpacity>
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.appName}>CrackJAMB</Text>
+          <Text style={styles.appSub}>Your personal JAMB tutor</Text>
         </View>
+        <View style={styles.logoBadge}>
+          <Text style={styles.logoEmoji}>🎓</Text>
+        </View>
+      </View>
 
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Quote */}
+        <Text style={styles.quote}>
+          "Ilimi shine maɓallin nasara" — Knowledge is the key to success
+        </Text>
+
+        {/* Start studying CTA */}
+        <TouchableOpacity
+          style={styles.ctaBtn}
+          onPress={() => navigation.navigate('Subjects')}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.ctaBtnText}>Fara Karatu — Start Studying</Text>
+        </TouchableOpacity>
+
+        {/* Exam countdown */}
         <ExamCountdownCard
           daysRemaining={daysRemaining}
           progressPercent={progressPercent}
@@ -80,32 +62,134 @@ export default function LandingScreen({ navigation }) {
           onSetDate={() => navigation.navigate('Settings')}
         />
 
+        {/* Today's plan */}
         <TodaysPlanCard
           weakTopics={weakTopics}
           visitedTopics={[]}
           onStudyNow={handleStudyNow}
         />
 
+        {/* Weakness focus */}
         <HomeWeaknessCard navigation={navigation} />
 
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 24 }}>
-          {['📐 Maths', '📖 English', '⚗️ Chemistry', '⚡ Physics'].map((subject) => (
-            <View key={subject} style={{
-              backgroundColor: 'rgba(255,255,255,0.15)',
-              paddingVertical: 10, paddingHorizontal: 14, borderRadius: 20,
-              width: '48%',
-              alignItems: 'center',
-              marginBottom: 8
-            }}>
-              <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '600' }}>{subject}</Text>
-            </View>
+        {/* Quick subject tiles */}
+        <Text style={styles.quickLabel}>Quick access</Text>
+        <View style={styles.quickGrid}>
+          {[
+            { label: 'Maths', emoji: '📐', id: 'mathematics' },
+            { label: 'English', emoji: '📖', id: 'english' },
+            { label: 'Chemistry', emoji: '⚗️', id: 'chemistry' },
+            { label: 'Physics', emoji: '⚡', id: 'physics' },
+          ].map((s) => (
+            <TouchableOpacity
+              key={s.id}
+              style={styles.quickTile}
+              onPress={() => navigation.navigate('Learn', {
+                subject: { id: s.id, name: s.label, emoji: s.emoji },
+              })}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.quickEmoji}>{s.emoji}</Text>
+              <Text style={styles.quickTileText}>{s.label}</Text>
+            </TouchableOpacity>
           ))}
         </View>
+
+        <View style={{ height: 16 }} />
       </ScrollView>
-
-      {/* Bottom bar */}
-      <View style={{ height: 4, backgroundColor: '#f5a623' }} />
-
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eaeef6',
+  },
+  appName: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#1b2a4a',
+    letterSpacing: 0.5,
+  },
+  appSub: {
+    fontSize: 13,
+    color: '#6b7c9a',
+    marginTop: 2,
+  },
+  logoBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#1b2a4a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoEmoji: {
+    fontSize: 20,
+  },
+  container: {
+    padding: 16,
+  },
+  quote: {
+    fontSize: 13,
+    color: '#6b7c9a',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  ctaBtn: {
+    backgroundColor: '#1b2a4a',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  ctaBtnText: {
+    color: '#ffffff',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  quickLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6b7c9a',
+    marginBottom: 10,
+    marginTop: 8,
+  },
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  quickTile: {
+    width: '47%',
+    backgroundColor: '#f4f6fb',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#dde3ef',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  quickEmoji: {
+    fontSize: 20,
+  },
+  quickTileText: {
+    color: '#1b2a4a',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+});

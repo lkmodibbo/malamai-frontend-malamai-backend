@@ -5,15 +5,15 @@ import useSRS from '../hooks/useSRS';
 import useWeaknessTracker from '../src/hooks/useWeaknessTracker';
 import useNotes from '../src/hooks/useNotes';
 import FlashcardScreen from './FlashcardScreen';
-import { callGemini, parseQuestionJson, normalizeQuestionList, isQuotaError } from '../src/utils/gemini';
+import { callGrok, parseQuestionJson, normalizeQuestionList, isQuotaError } from '../src/utils/grok';
 import { getMode, getSystemPrompt } from '../src/hooks/useLanguageMode';
+import { COLORS } from '../constants/colors';
 
-// FIX 1: Removed hardcoded GEMINI_ENDPOINT constant entirely.
-// The endpoint must come from the environment variable only.
-// If it's missing, callGemini will throw a clear error instead of silently
-// falling back to the wrong model (gemini-2.0-flash vs gemini-2.5-flash).
+// Using Grok API for generating learning content.
+// The API key and endpoint must come from environment variables.
+// If credentials are missing, callGrok will throw a clear error.
 
-const QUOTA_ERROR_MESSAGE = 'Gemini quota is exhausted right now. Please try fetching the questions again soon.';
+const QUOTA_ERROR_MESSAGE = 'Grok quota is exhausted right now. Please try fetching the questions again soon.';
 const QUIZ_TIME_SECONDS = 5 * 60;
 const QUESTION_COUNT = 5;
 
@@ -29,7 +29,7 @@ function getFallbackExplanation(subject, topic) {
   const subjectName = subject?.name || 'this subject';
   const focus = topic || subjectName;
 
-  return `Gemini quota is exhausted right now, so here is a quick offline note.\n\n${focus} is an important part of ${subjectName}. Start by learning the key meaning, then practise one small example before answering questions. Read each question carefully, remove options that are clearly wrong, and choose the best answer.\n\nReady to test yourself?`;
+  return `Grok quota is exhausted right now, so here is a quick offline note.\n\n${focus} is an important part of ${subjectName}. Start by learning the key meaning, then practise one small example before answering questions. Read each question carefully, remove options that are clearly wrong, and choose the best answer.\n\nReady to test yourself?`;
 }
 
 function formatTime(seconds) {
@@ -94,14 +94,14 @@ export default function LearnScreen({ route, navigation }) {
         - Teach at SS2/SS3 level, not university level. Keep it simple and clear.
         - End with "Ready to test yourself?" to encourage the student to practise.
       `;
-      const text = await callGemini(learnPrompt);
+      const text = await callGrok(learnPrompt);
       setExplanation(typeof text === 'string' ? text : JSON.stringify(text));
     } catch (err) {
       console.error('[fetchExplanation]', err);
 
       if (isQuotaError(err)) {
         const retryText = err.retryDelay
-          ? ` You can retry Gemini in about ${err.retryDelay} seconds.`
+          ? ` You can retry Grok in about ${err.retryDelay} seconds.`
           : '';
         setExplanation(`${getFallbackExplanation(subject, topic)}\n\n${retryText}`);
         return;
@@ -122,13 +122,13 @@ export default function LearnScreen({ route, navigation }) {
   useEffect(() => {
     let mounted = true;
     async function loadNote() {
-      if (!subject?.id || !topic) {
+      if (!subject?.id) {
         setNoteText('');
         return;
       }
 
       try {
-        const existing = await getNote(subject, topic);
+        const existing = await getNote(subject, topic || subject.name);
         if (mounted) {
           setNoteText(existing?.note || '');
         }
@@ -200,7 +200,7 @@ Format your response EXACTLY like this JSON:
   ]
 }
 `;
-      const text = await callGemini(practicePrompt);
+      const text = await callGrok(practicePrompt);
       const parsed = parseQuestionJson(String(text));
       const nextQuestions = normalizeQuestionList(parsed, maxQuestions);
 
@@ -215,7 +215,7 @@ Format your response EXACTLY like this JSON:
 
       if (isQuotaError(err)) {
         setQuestionError(err.retryDelay
-          ? `${QUOTA_ERROR_MESSAGE} You can retry Gemini in about ${err.retryDelay} seconds.`
+          ? `${QUOTA_ERROR_MESSAGE} You can retry Grok in about ${err.retryDelay} seconds.`
           : QUOTA_ERROR_MESSAGE);
         return;
       }
@@ -315,19 +315,21 @@ Format your response EXACTLY like this JSON:
   }
 
   async function handleSaveNote() {
-    if (!subject?.id || !topic) {
-      Alert.alert('Missing subject', 'Unable to save note because the subject or topic is missing.');
+    if (!subject?.id) {
+      Alert.alert('Missing subject', 'Unable to save note because the subject is missing.');
       return;
     }
+
+    // Fall back to subject name if no specific topic was passed
+    const noteKey = topic || subject.name;
 
     try {
       await saveNote(
         { id: subject.id, name: subject.name, emoji: subject.emoji },
-        topic,
+        noteKey,
         noteText
       );
       setNoteStatus('Saved');
-      setTimeout(() => setNoteStatus(''), 1500);
     } catch (error) {
       console.warn('[LearnScreen] save note failed', error);
       Alert.alert('Save failed', 'Unable to save your note. Please try again.');
@@ -335,10 +337,10 @@ Format your response EXACTLY like this JSON:
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.surface }}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={{ color: '#0a7c4f' }}>Back</Text>
+          <Text style={{ color: COLORS.accent }}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{subject?.emoji} {subject?.name}</Text>
       </View>
@@ -377,7 +379,7 @@ Format your response EXACTLY like this JSON:
         {mode === 'learn' && (
           <View>
             {loading
-              ? <ActivityIndicator size="large" color="#0a7c4f" />
+              ? <ActivityIndicator size="large" color={COLORS.primary} />
               : <Text style={styles.explanationText}>{explanation}</Text>
             }
 
@@ -386,16 +388,20 @@ Format your response EXACTLY like this JSON:
               <TextInput
                 style={styles.notesInput}
                 value={noteText}
-                onChangeText={setNoteText}
+                onChangeText={(text) => { setNoteText(text); setNoteStatus(''); }}
                 placeholder="Write your own notes here…"
-                placeholderTextColor="#9aa299"
+                placeholderTextColor={COLORS.textLight}
                 multiline
                 textAlignVertical="top"
               />
               <View style={styles.notesFooter}>
                 <Text style={styles.noteStatus}>{noteStatus}</Text>
-                <TouchableOpacity style={styles.saveNoteBtn} onPress={handleSaveNote} activeOpacity={0.8}>
-                  <Text style={styles.saveNoteText}>Save note</Text>
+                <TouchableOpacity
+                  style={[styles.saveNoteBtn, noteStatus === 'Saved' && styles.saveNoteBtnSaved]}
+                  onPress={handleSaveNote}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.saveNoteText}>{noteStatus === 'Saved' ? '✓ Saved' : 'Save note'}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -413,7 +419,7 @@ Format your response EXACTLY like this JSON:
         {mode === 'practice' && (
           <View>
             {loadingQuestion ? (
-              <ActivityIndicator size="large" color="#0a7c4f" />
+              <ActivityIndicator size="large" color={COLORS.primary} />
             ) : questionError ? (
               <View>
                 <Text style={styles.errorText}>{questionError}</Text>
@@ -496,10 +502,10 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: COLORS.border,
     minHeight: 48,
   },
   backBtn: {
@@ -511,27 +517,27 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0a7c4f',
+    color: COLORS.primary,
     textAlign: 'center',
     paddingHorizontal: 64,
   },
   timerRow: {
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingBottom: 10,
   },
   timerText: {
-    color: '#0a7c4f',
+    color: COLORS.timerNormal,
     fontWeight: '900',
-    backgroundColor: '#e4f5ec',
+    backgroundColor: COLORS.selected,
     borderRadius: 16,
     paddingVertical: 6,
     paddingHorizontal: 10,
     overflow: 'hidden',
   },
   timerTextLow: {
-    color: '#b00020',
-    backgroundColor: '#ffe8e8',
+    color: COLORS.timerLow,
+    backgroundColor: COLORS.timerBgLow,
   },
   modeRow: {
     flexDirection: 'row',
@@ -542,45 +548,45 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     borderRadius: 30,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: COLORS.border,
     alignItems: 'center',
   },
   modeActive: {
-    backgroundColor: '#0a7c4f',
+    backgroundColor: COLORS.primary,
   },
   modeText: {
-    color: '#0a7c4f',
+    color: COLORS.secondary,
     fontWeight: '700',
   },
   modeActiveText: {
-    color: '#fff',
+    color: COLORS.textWhite,
     fontWeight: '700',
   },
   explanationText: {
-    color: '#333',
+    color: COLORS.textPrimary,
     lineHeight: 22,
     fontSize: 16,
   },
   notesCard: {
     marginTop: 18,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
     borderRadius: 18,
     padding: 16,
   },
   notesHeader: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#0a7c4f',
+    color: COLORS.primary,
     marginBottom: 10,
   },
   notesInput: {
     minHeight: 110,
     borderRadius: 14,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: '#d7ded5',
+    borderColor: COLORS.border,
     padding: 14,
-    color: '#222',
+    color: COLORS.textPrimary,
     fontSize: 15,
     textAlignVertical: 'top',
   },
@@ -591,54 +597,57 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   noteStatus: {
-    color: '#4b6d4d',
+    color: COLORS.textMuted,
     fontSize: 13,
   },
   saveNoteBtn: {
-    backgroundColor: '#0a7c4f',
+    backgroundColor: COLORS.primary,
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 999,
   },
+  saveNoteBtnSaved: {
+    backgroundColor: '#27ae60',
+  },
   saveNoteText: {
-    color: '#fff',
+    color: COLORS.textWhite,
     fontWeight: '800',
   },
   cta: {
     marginTop: 16,
-    backgroundColor: '#f5a623',
+    backgroundColor: COLORS.accent,
     paddingVertical: 14,
     borderRadius: 30,
     alignItems: 'center',
   },
   ctaText: {
-    color: '#0a7c4f',
+    color: COLORS.primary,
     fontWeight: '800',
   },
   qText: {
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 12,
-    color: '#0a7c4f',
+    color: COLORS.primary,
   },
   option: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.surface,
     padding: 12,
     borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: COLORS.border,
   },
   optionSelected: {
-    backgroundColor: '#e4f5ec',
-    borderColor: '#0a7c4f',
+    backgroundColor: COLORS.selected,
+    borderColor: COLORS.secondary,
   },
   optionText: {
-    color: '#0a7c4f',
+    color: COLORS.primary,
     fontWeight: '600',
   },
   progressText: {
-    color: '#666',
+    color: COLORS.textMuted,
     fontWeight: '700',
     marginBottom: 10,
   },
@@ -649,23 +658,23 @@ const styles = StyleSheet.create({
   },
   navBtn: {
     flex: 0.48,
-    backgroundColor: '#0a7c4f',
+    backgroundColor: COLORS.primary,
     paddingVertical: 14,
     borderRadius: 30,
     alignItems: 'center',
   },
   navBtnDisabled: {
-    backgroundColor: '#c8d8cf',
+    backgroundColor: COLORS.disabled,
   },
   navBtnText: {
-    color: '#fff',
+    color: COLORS.textWhite,
     fontWeight: '800',
   },
   submitBtn: {
-    backgroundColor: '#f5a623',
+    backgroundColor: COLORS.accent,
   },
   submitBtnText: {
-    color: '#0a7c4f',
+    color: COLORS.primary,
     fontWeight: '900',
   },
   questionGrid: {
@@ -678,33 +687,33 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 8,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: '#d0e8dc',
+    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
     margin: 4,
   },
   questionBoxAnswered: {
-    backgroundColor: '#0a7c4f',
-    borderColor: '#0a7c4f',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   questionBoxActive: {
     borderWidth: 2,
-    borderColor: '#f5a623',
+    borderColor: COLORS.accent,
   },
   questionBoxText: {
-    color: '#0a7c4f',
+    color: COLORS.primary,
     fontWeight: '800',
   },
   questionBoxTextAnswered: {
-    color: '#fff',
+    color: COLORS.textWhite,
   },
   questionBoxTextActive: {
-    color: '#f5a623',
+    color: COLORS.accent,
   },
   errorText: {
-    color: '#b00020',
+    color: COLORS.wrong,
     lineHeight: 20,
     marginBottom: 12,
   },

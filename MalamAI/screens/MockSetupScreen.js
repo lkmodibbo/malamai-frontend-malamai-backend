@@ -4,150 +4,185 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import SUBJECTS from '../constants/subjects';
 
 export default function MockSetupScreen({ navigation }) {
-  const [selectedSubjects, setSelectedSubjects] = useState(SUBJECTS.slice(0, 4).map((subject) => subject.id));
+  const [selected, setSelected] = useState(SUBJECTS.slice(0, 4).map((s) => s.id));
 
-  const toggleSubject = (subjectId) => {
-    setSelectedSubjects((current) => {
-      const isSelected = current.includes(subjectId);
-      if (isSelected) {
-        return current.filter((id) => id !== subjectId);
+  const toggle = (id) => {
+    setSelected((cur) => {
+      if (cur.includes(id)) return cur.filter((x) => x !== id);
+      if (cur.length >= 4) {
+        Alert.alert('4 subjects max', 'JAMB allows exactly 4 subjects. Deselect one to add another.');
+        return cur;
       }
-
-      if (current.length >= 4) {
-        Alert.alert('Limit reached', 'You can only select 4 JAMB subjects for the mock exam.');
-        return current;
-      }
-
-      return [...current, subjectId];
+      return [...cur, id];
     });
   };
 
   const handleStart = () => {
-    if (selectedSubjects.length !== 4) {
-      Alert.alert('Select 4 subjects', 'Please choose exactly 4 subjects before starting the mock exam.');
+    if (selected.length !== 4) {
+      Alert.alert('Select 4 subjects', 'Please select exactly 4 subjects to start.');
       return;
     }
-
-    navigation.navigate('MockExam', { subjectIds: selectedSubjects });
+    navigation.navigate('MockExam', { subjectIds: selected });
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Mock Exam Setup</Text>
-        <Text style={styles.subtitle}>Select your 4 registered JAMB subjects.</Text>
+    <SafeAreaView style={styles.root}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Text style={styles.backText}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Mock Exam Setup</Text>
+        <View style={styles.backBtn} />
+      </View>
 
-        <View style={styles.list}> 
-          {SUBJECTS.map((subject) => {
-            const selected = selectedSubjects.includes(subject.id);
-            return (
-              <TouchableOpacity
-                key={subject.id}
-                style={[styles.item, selected && styles.itemSelected]}
-                onPress={() => toggleSubject(subject.id)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
-                  <Text style={[styles.checkboxLabel, selected && styles.checkboxLabelActive]}>{selected ? '✓' : ''}</Text>
-                </View>
-                <View>
-                  <Text style={[styles.itemTitle, selected && styles.itemTitleSelected]}>{subject.emoji} {subject.name}</Text>
-                  <Text style={styles.itemSubtitle}>{subject.topics[0]}</Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Info card */}
+        <View style={styles.infoCard}>
+          <Text style={styles.infoTitle}>🎓 JAMB Mock Exam</Text>
+          <Text style={styles.infoBody}>
+            Select your 4 JAMB subjects. You'll get 40 questions per subject — 160 total — in 90 minutes.
+          </Text>
+          <View style={styles.statsRow}>
+            {[['160', 'Questions'], ['90', 'Minutes'], ['400', 'Max Score']].map(([val, label]) => (
+              <View key={label} style={styles.statItem}>
+                <Text style={styles.statVal}>{val}</Text>
+                <Text style={styles.statLabel}>{label}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
-        <TouchableOpacity style={styles.startBtn} onPress={handleStart} activeOpacity={0.85}>
-          <Text style={styles.startBtnText}>Start Mock Exam</Text>
+        {/* Counter */}
+        <View style={styles.counterRow}>
+          <Text style={styles.counterText}>Select subjects</Text>
+          <View style={[styles.counterBadge, selected.length === 4 && styles.counterBadgeFull]}>
+            <Text style={styles.counterBadgeText}>{selected.length}/4</Text>
+          </View>
+        </View>
+
+        {/* Subject list */}
+        {SUBJECTS.map((s) => {
+          const on = selected.includes(s.id);
+          return (
+            <TouchableOpacity
+              key={s.id}
+              style={[styles.item, on && styles.itemOn]}
+              onPress={() => toggle(s.id)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.checkbox, on && styles.checkboxOn]}>
+                {on && <Text style={styles.checkmark}>✓</Text>}
+              </View>
+              <Text style={styles.itemEmoji}>{s.emoji}</Text>
+              <Text style={[styles.itemName, on && styles.itemNameOn]} numberOfLines={1}>
+                {s.name}
+              </Text>
+              {on && <Text style={styles.itemTick}>●</Text>}
+            </TouchableOpacity>
+          );
+        })}
+
+        <TouchableOpacity
+          style={[styles.startBtn, selected.length !== 4 && styles.startBtnDisabled]}
+          onPress={handleStart}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.startBtnText}>
+            {selected.length === 4 ? 'Start Mock Exam →' : `Select ${4 - selected.length} more subject${4 - selected.length !== 1 ? 's' : ''}`}
+          </Text>
         </TouchableOpacity>
+
+        <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#fff',
+  root: { flex: 1, backgroundColor: '#ffffff' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#dde3ef',
   },
-  container: {
-    padding: 20,
-    paddingBottom: 40,
+  backBtn: { minWidth: 60 },
+  backText: { color: '#2e4a7a', fontWeight: '700', fontSize: 14 },
+  headerTitle: { fontSize: 16, fontWeight: '800', color: '#1b2a4a' },
+
+  container: { padding: 16 },
+
+  infoCard: {
+    backgroundColor: '#1b2a4a',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
   },
-  title: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: '#0a7c4f',
-    marginBottom: 8,
+  infoTitle: { color: '#ffffff', fontSize: 14, fontWeight: '800', marginBottom: 6 },
+  infoBody: { color: '#b0bfd8', fontSize: 12, lineHeight: 18, marginBottom: 12 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-around' },
+  statItem: { alignItems: 'center' },
+  statVal: { color: '#ffffff', fontSize: 18, fontWeight: '900' },
+  statLabel: { color: '#b0bfd8', fontSize: 10, marginTop: 2 },
+
+  counterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
-  subtitle: {
-    color: '#555',
-    fontSize: 15,
-    marginBottom: 20,
-    lineHeight: 22,
+  counterText: { fontSize: 14, fontWeight: '700', color: '#6b7c9a' },
+  counterBadge: {
+    backgroundColor: '#f4f6fb',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#dde3ef',
   },
-  list: {
-    marginBottom: 30,
-  },
+  counterBadgeFull: { backgroundColor: '#1b2a4a', borderColor: '#1b2a4a' },
+  counterBadgeText: { fontWeight: '800', color: '#1b2a4a', fontSize: 13 },
+
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f6faf6',
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: '#f4f6fb',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 6,
     borderWidth: 1,
-    borderColor: '#e1e8e2',
+    borderColor: '#dde3ef',
+    gap: 10,
   },
-  itemSelected: {
-    borderColor: '#0a7c4f',
-    backgroundColor: '#e8f4ea',
-  },
+  itemOn: { backgroundColor: '#e6f0ff', borderColor: '#1b2a4a' },
   checkbox: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
+    width: 20,
+    height: 20,
+    borderRadius: 5,
     borderWidth: 2,
-    borderColor: '#0a7c4f',
+    borderColor: '#c5cfe0',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
   },
-  checkboxSelected: {
-    backgroundColor: '#0a7c4f',
-  },
-  checkboxLabel: {
-    color: '#0a7c4f',
-    fontWeight: '900',
-  },
-  checkboxLabelActive: {
-    color: '#fff',
-  },
-  itemTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#0a7c4f',
-  },
-  itemTitleSelected: {
-    color: '#0a7c4f',
-  },
-  itemSubtitle: {
-    color: '#5d5d5d',
-    marginTop: 4,
-    fontSize: 13,
-  },
+  checkboxOn: { backgroundColor: '#1b2a4a', borderColor: '#1b2a4a' },
+  checkmark: { color: '#ffffff', fontWeight: '900', fontSize: 11 },
+  itemEmoji: { fontSize: 18 },
+  itemName: { flex: 1, fontSize: 13, fontWeight: '700', color: '#1b2a4a' },
+  itemNameOn: { color: '#1b2a4a' },
+  itemTick: { color: '#1b2a4a', fontSize: 10 },
+
   startBtn: {
-    marginTop: 12,
-    backgroundColor: '#0a7c4f',
-    borderRadius: 18,
+    marginTop: 8,
+    backgroundColor: '#1b2a4a',
+    borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
   },
-  startBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '800',
-  },
+  startBtnDisabled: { backgroundColor: '#c5cfe0' },
+  startBtnText: { color: '#ffffff', fontSize: 15, fontWeight: '800' },
 });

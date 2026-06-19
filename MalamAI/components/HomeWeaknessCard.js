@@ -4,7 +4,7 @@ import useWeaknessTracker from '../src/hooks/useWeaknessTracker';
 import SUBJECTS from '../constants/subjects';
 
 const getSubjectEmoji = (subjectId, subjectName) => {
-  const subject = SUBJECTS.find((item) => item.id === subjectId || item.name === subjectName);
+  const subject = SUBJECTS.find((s) => s.id === subjectId || s.name === subjectName);
   return subject?.emoji || '📘';
 };
 
@@ -25,34 +25,25 @@ export default function HomeWeaknessCard({ navigation }) {
   if (!topWeakTopic) return null;
 
   const emoji = getSubjectEmoji(topWeakTopic.subjectId, topWeakTopic.subjectName);
-  const subject = {
-    id: topWeakTopic.subjectId,
-    name: topWeakTopic.subjectName,
-    emoji,
-  };
 
   return (
     <View style={styles.card}>
-      <View style={styles.accent} />
+      <View style={styles.leftBar} />
       <View style={styles.content}>
-        <View style={styles.topRow}>
-          <Text style={styles.alertIcon}>⚠️</Text>
-          <Text style={styles.title}>Focus Area</Text>
-        </View>
-        <Text style={styles.body} numberOfLines={2}>{emoji} {topWeakTopic.topic}</Text>
-        <View style={styles.actionRow}>
+        <Text style={styles.title}>⚠️ Focus Area</Text>
+        <Text style={styles.topic} numberOfLines={2}>{emoji} {topWeakTopic.topic}</Text>
+        <View style={styles.actions}>
           <TouchableOpacity
             style={styles.studyBtn}
-            onPress={() => navigation.navigate('Learn', { subject, topic: topWeakTopic.topic })}
-            activeOpacity={0.8}
+            onPress={() => navigation.navigate('Learn', {
+              subject: { id: topWeakTopic.subjectId, name: topWeakTopic.subjectName, emoji },
+              topic: topWeakTopic.topic,
+            })}
           >
             <Text style={styles.studyBtnText}>Study Now</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Weakness')}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.viewAllText}>View all</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Weakness')}>
+            <Text style={styles.viewAll}>View all →</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -63,62 +54,53 @@ export default function HomeWeaknessCard({ navigation }) {
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
-    marginBottom: 10,
     backgroundColor: '#ffffff',
-    borderRadius: 18,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 2,
+    borderRadius: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#dde3ef',
     overflow: 'hidden',
-    width: '100%',
   },
-  accent: {
-    width: 10,
-    backgroundColor: '#f5a623',
+  leftBar: {
+    width: 6,
+    backgroundColor: '#e74c3c',
   },
   content: {
     flex: 1,
-    padding: 8,
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  alertIcon: {
-    fontSize: 14,
-    marginRight: 10,
+    padding: 14,
   },
   title: {
-    color: '#0a7c4f',
+    color: '#1b2a4a',
     fontSize: 14,
     fontWeight: '800',
+    marginBottom: 6,
   },
-  body: {
-    color: '#0f5d30',
+  topic: {
+    color: '#1b2a4a',
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '600',
     marginBottom: 12,
+    lineHeight: 20,
   },
-  actionRow: {
+  actions: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   studyBtn: {
-    backgroundColor: '#0a7c4f',
-    paddingVertical: 10,
+    backgroundColor: '#1b2a4a',
+    paddingVertical: 9,
     paddingHorizontal: 18,
     borderRadius: 999,
   },
   studyBtnText: {
-    color: '#fff',
+    color: '#ffffff',
     fontWeight: '700',
+    fontSize: 13,
   },
-  viewAllText: {
-    color: '#0a7c4f',
-    fontSize: 14,
+  viewAll: {
+    color: '#2e4a7a',
     fontWeight: '700',
+    fontSize: 13,
   },
 });

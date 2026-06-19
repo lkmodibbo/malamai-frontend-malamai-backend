@@ -1,19 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { saveProfile, setOnboardingComplete } from '../src/hooks/useStudentProfile';
 
-const SUBJECT_OPTIONS = [
-  { id: 'english', name: 'Use of English', emoji: '📖' },
-  { id: 'mathematics', name: 'Mathematics', emoji: '📐' },
-  { id: 'physics', name: 'Physics', emoji: '⚡' },
-  { id: 'chemistry', name: 'Chemistry', emoji: '⚗️' },
-  { id: 'biology', name: 'Biology', emoji: '🧬' },
-  { id: 'economics', name: 'Economics', emoji: '💰' },
-  { id: 'government', name: 'Government', emoji: '🏛️' },
-  { id: 'literature', name: 'Literature', emoji: '📚' },
-];
+const DateTimePicker = Platform.OS !== 'web'
+  ? require('@react-native-community/datetimepicker').default
+  : null;
+import { saveProfile, setOnboardingComplete } from '../src/hooks/useStudentProfile';
+import SUBJECTS from '../constants/subjects';
+
+const SUBJECT_OPTIONS = SUBJECTS;
 
 export default function OnboardingScreen({ navigation }) {
   const [step, setStep] = useState(1);
@@ -48,9 +43,7 @@ export default function OnboardingScreen({ navigation }) {
   };
 
   const handleDateChange = (_, date) => {
-    if (Platform.OS !== 'ios') {
-      setShowPicker(false);
-    }
+    setShowPicker(Platform.OS === 'ios'); // keep open on iOS, close on Android
     if (date) {
       setExamDate(date);
     }
@@ -126,17 +119,33 @@ export default function OnboardingScreen({ navigation }) {
 
         {step === 3 && (
           <View style={styles.dateSection}>
-            <TouchableOpacity style={styles.datePickerButton} onPress={() => setShowPicker(true)}>
-              <Text style={styles.datePickerText}>{examDate ? examDate.toDateString() : 'Select exam date'}</Text>
-            </TouchableOpacity>
-            {showPicker && (
-              <DateTimePicker
-                value={examDate || new Date()}
-                mode="date"
-                display="default"
-                onChange={handleDateChange}
-                minimumDate={new Date()}
+            {Platform.OS === 'web' ? (
+              <input
+                type="date"
+                min={new Date().toISOString().split('T')[0]}
+                value={examDate ? examDate.toISOString().split('T')[0] : ''}
+                onChange={(e) => {
+                  if (e.target.value) setExamDate(new Date(e.target.value));
+                }}
+                style={webDateInputStyle}
               />
+            ) : (
+              <>
+                <TouchableOpacity style={styles.datePickerButton} onPress={() => setShowPicker(true)}>
+                  <Text style={styles.datePickerText}>
+                    📅  {examDate ? examDate.toDateString() : 'Tap to select exam date'}
+                  </Text>
+                </TouchableOpacity>
+                {showPicker && (
+                  <DateTimePicker
+                    value={examDate || new Date()}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={handleDateChange}
+                    minimumDate={new Date()}
+                  />
+                )}
+              </>
             )}
           </View>
         )}
@@ -153,6 +162,18 @@ export default function OnboardingScreen({ navigation }) {
   );
 }
 
+const webDateInputStyle = {
+  width: '100%',
+  padding: '16px',
+  fontSize: '16px',
+  borderRadius: '18px',
+  border: '1px solid #d6e4d7',
+  backgroundColor: '#f5f8f3',
+  color: '#17422e',
+  outline: 'none',
+  boxSizing: 'border-box',
+};
+
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -160,7 +181,7 @@ const styles = StyleSheet.create({
   },
   headerBar: {
     height: 80,
-    backgroundColor: '#0a7c4f',
+    backgroundColor: '#1b2a4a',
   },
   container: {
     padding: 24,
@@ -185,7 +206,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   dotActive: {
-    backgroundColor: '#f5a623',
+    backgroundColor: '#2e4a7a',
   },
   question: {
     fontSize: 26,
@@ -222,8 +243,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f6faf6',
   },
   subjectChipSelected: {
-    backgroundColor: '#0a7c4f',
-    borderColor: '#0a7c4f',
+    backgroundColor: '#1b2a4a',
+    borderColor: '#1b2a4a',
   },
   subjectChipLocked: {
     opacity: 0.9,
@@ -257,7 +278,7 @@ const styles = StyleSheet.create({
     color: '#17422e',
   },
   actionButton: {
-    backgroundColor: '#0a7c4f',
+    backgroundColor: '#1b2a4a',
     paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',

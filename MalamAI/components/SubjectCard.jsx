@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { COLORS } from '../constants/colors';
 
-export default function SubjectCard({ name, emoji, color = '#0a7c4f', onPress }) {
+export default function SubjectCard({ name, emoji, color = COLORS.primary, onPress }) {
 	return (
 		<TouchableOpacity style={[styles.card, { backgroundColor: color }]} onPress={onPress}>
 			<Text style={styles.emoji}>{emoji}</Text>
@@ -12,24 +13,25 @@ export default function SubjectCard({ name, emoji, color = '#0a7c4f', onPress })
 
 const styles = StyleSheet.create({
 	card: {
-		width: '48%',
+		width: '28%',
 		aspectRatio: 1,
-		borderRadius: 16,
-		padding: 16,
+		borderRadius: 10,
+		padding: 12,
 		alignItems: 'center',
 		justifyContent: 'center',
-		marginBottom: 12,
-		shadowColor: '#000',
+		marginBottom: 10,
+		shadowColor: COLORS.shadow,
 		shadowOpacity: 0.12,
 		shadowRadius: 6,
 	},
 	emoji: {
-		fontSize: 36,
+		fontSize: 14,
 		marginBottom: 8,
 	},
 	name: {
-		color: '#fff',
-		fontWeight: '700',
-		textAlign: 'center'
+		color: COLORS.textWhite,
+		fontWeight: '500',
+		textAlign: 'center',
+		fontSize: 10,
 	}
 });
