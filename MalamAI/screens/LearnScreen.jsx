@@ -254,7 +254,7 @@ Format your response EXACTLY like this JSON:
     setCurrentQuestionIndex(nextIndex);
   }
 
-  async function handleSubmitQuiz() {
+async function handleSubmitQuiz() {
     if (submittedRef.current) return;
     submittedRef.current = true;
 
@@ -311,6 +311,10 @@ Format your response EXACTLY like this JSON:
       weakTopics,
       review,
       motivation: getMotivation(finalScore, maxQuestions),
+      // NEW — pass subject and topic so ScoreScreen can save to backend
+      subjectId:   subject?.id   || null,
+      topicName:   topic         || subject?.name || null,
+      timeTaken:   QUIZ_TIME_SECONDS - (timeRemaining || 0),
     });
   }
 

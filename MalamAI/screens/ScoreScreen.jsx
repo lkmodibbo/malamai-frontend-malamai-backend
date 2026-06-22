@@ -1,15 +1,59 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { callGrok, getStepByStepPrompt, buildWhyWrongPrompt } from '../src/utils/grok';
 import { COLORS } from '../constants/colors';
+import { saveQuizAttempt } from '../src/utils/apiService'; // NEW
 
 export default function ScoreScreen({ route, navigation }) {
-  const { score = 0, total = 0, weakTopics = [], review = [], motivation } = route.params || {};
-  const [whyWrongResponses, setWhyWrongResponses] = useState({});
-  const [loadingWhyWrong, setLoadingWhyWrong] = useState({});
-  const [whyWrongErrors, setWhyWrongErrors] = useState({});
-  const [expandedWhyWrong, setExpandedWhyWrong] = useState({});
+  const {
+    score = 0,
+    total = 0,
+    weakTopics = [],
+    review = [],
+    motivation,
+    subjectId  = null,  // NEW
+    topicName  = null,  // NEW
+    timeTaken  = 0,     // NEW
+  } = route.params || {};
+
+  const [whyWrongResponses, setWhyWrongResponses]   = useState({});
+  const [loadingWhyWrong, setLoadingWhyWrong]       = useState({});
+  const [whyWrongErrors, setWhyWrongErrors]         = useState({});
+  const [expandedWhyWrong, setExpandedWhyWrong]     = useState({});
+  const [saveStatus, setSaveStatus]                 = useState('saving'); // 'saving' | 'saved' | 'error'
+  const hasSavedRef = useRef(false); // prevent double save
+
+  // NEW — save quiz attempt to backend when screen loads
+  useEffect(() => {
+    if (hasSavedRef.current) return;
+    hasSavedRef.current = true;
+
+    async function saveAttempt() {
+      try {
+        await saveQuizAttempt({
+          subject_id: subjectId,
+          topic_name: topicName,
+          score,
+          total,
+          time_taken: timeTaken,
+          // Pass each wrong answer for detailed tracking
+          answers: review.map((item) => ({
+            question_text: item.question,
+            selected:      item.selected   || '',
+            correct:       item.answer     || '',
+            is_correct:    item.isCorrect,
+          })),
+        });
+        setSaveStatus('saved');
+      } catch (err) {
+        console.warn('[ScoreScreen] save quiz attempt failed:', err.message);
+        setSaveStatus('error');
+      }
+    }
+
+    saveAttempt();
+  }, []);
 
   const getFeedbackKey = (item, index) => `${item.question}-${index}`;
 
@@ -24,18 +68,20 @@ export default function ScoreScreen({ route, navigation }) {
 
     setExpandedWhyWrong((prev) => ({ ...prev, [key]: true }));
 
-    if (whyWrongResponses[key] || loadingWhyWrong[key]) {
-      return;
-    }
+    if (whyWrongResponses[key] || loadingWhyWrong[key]) return;
 
     setLoadingWhyWrong((prev) => ({ ...prev, [key]: true }));
     setWhyWrongErrors((prev) => ({ ...prev, [key]: null }));
 
     try {
       const selectedOption = item.selected || '';
-      const correctOption = item.answer || '';
-      const selectedText = selectedOption ? `${selectedOption}. ${item.options?.[selectedOption] || ''}` : 'Not answered';
-      const correctText = correctOption ? `${correctOption}. ${item.options?.[correctOption] || ''}` : 'Not available';
+      const correctOption  = item.answer   || '';
+      const selectedText   = selectedOption
+        ? `${selectedOption}. ${item.options?.[selectedOption] || ''}`
+        : 'Not answered';
+      const correctText = correctOption
+        ? `${correctOption}. ${item.options?.[correctOption] || ''}`
+        : 'Not available';
 
       const prompt = buildWhyWrongPrompt(
         item.question,
@@ -49,32 +95,27 @@ export default function ScoreScreen({ route, navigation }) {
       setWhyWrongResponses((prev) => ({ ...prev, [key]: text }));
     } catch (err) {
       console.warn('[ScoreScreen] fetch why-wrong failed', err);
-      setWhyWrongErrors((prev) => ({ ...prev, [key]: 'Could not load feedback. Tap to retry.' }));
+      setWhyWrongErrors((prev) => ({
+        ...prev,
+        [key]: 'Could not load feedback. Tap to retry.',
+      }));
     } finally {
       setLoadingWhyWrong((prev) => ({ ...prev, [key]: false }));
     }
   };
 
-  const percent = total > 0 ? Math.round((score / total) * 100) : 0;
-
-  // FIX 6: The original code computed `message` and `hausa` separately, then built
-  // `motivationText` from them — but then rendered all three independently, so the
-  // score card showed both the raw `message`/`hausa` strings AND `motivationText`
-  // (which already contained both). Now message and hausa are only used to build
-  // motivationText; they are not rendered on their own.
-  let message = 'Good effort! Keep practicing to improve.';
-  let hausa = 'Ka yi ƙoƙari! Ci gaba da yin nazari.';
+  const percent       = total > 0 ? Math.round((score / total) * 100) : 0;
+  let message         = 'Good effort! Keep practicing to improve.';
+  let hausa           = 'Ka yi ƙoƙari! Ci gaba da yin nazari.';
 
   if (percent >= 80) {
     message = 'Excellent work — you are ready!';
-    hausa = 'Nagode — Ka yi kyau sosai!';
+    hausa   = 'Nagode — Ka yi kyau sosai!';
   } else if (percent >= 50) {
     message = 'Nice progress — a bit more practice will help.';
-    hausa = 'Ka yi kyau — kada ka damu, ka ci gaba da karatu.';
+    hausa   = 'Ka yi kyau — kada ka damu, ka ci gaba da karatu.';
   }
 
-  // Use the motivation passed from LearnScreen if available; otherwise fall back to
-  // the locally computed strings.
   const motivationText = motivation || `${message} ${hausa}`;
 
   return (
@@ -82,12 +123,31 @@ export default function ScoreScreen({ route, navigation }) {
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Final Score</Text>
 
+        {/* NEW — small save status indicator */}
+        {saveStatus === 'saving' && (
+          <View style={styles.saveStatusRow}>
+            <ActivityIndicator size="small" color={COLORS.textLight} />
+            <Text style={styles.saveStatusText}>Saving your score…</Text>
+          </View>
+        )}
+        {saveStatus === 'saved' && (
+          <View style={styles.saveStatusRow}>
+            <Text style={styles.saveStatusSaved}>✓ Score saved to your account</Text>
+          </View>
+        )}
+        {saveStatus === 'error' && (
+          <View style={styles.saveStatusRow}>
+            <Text style={styles.saveStatusError}>
+              Could not save score — check your connection
+            </Text>
+          </View>
+        )}
+
         <View style={styles.scoreBox}>
           <Text style={styles.scoreText}>{score}/{total}</Text>
           <Text style={styles.percentText}>{percent}%</Text>
         </View>
 
-        {/* FIX 6 (continued): Render motivationText once instead of three overlapping strings */}
         <Text style={styles.motivation}>{motivationText}</Text>
 
         {weakTopics && weakTopics.length > 0 && (
@@ -129,7 +189,9 @@ export default function ScoreScreen({ route, navigation }) {
                       activeOpacity={0.8}
                     >
                       <Text style={styles.showWorkingText}>
-                        {expandedWhyWrong[getFeedbackKey(item, index)] ? 'Close ▲' : 'Why did I get this wrong? →'}
+                        {expandedWhyWrong[getFeedbackKey(item, index)]
+                          ? 'Close ▲'
+                          : 'Why did I get this wrong? →'}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -138,30 +200,45 @@ export default function ScoreScreen({ route, navigation }) {
                     <View style={styles.feedbackContainer}>
                       {loadingWhyWrong[getFeedbackKey(item, index)] ? (
                         <View style={styles.feedbackLoadingRow}>
-                          <ActivityIndicator size="small" color={COLORS.primary} style={styles.feedbackLoader} />
-                          <Text style={styles.feedbackLoadingText}>Malam AI is thinking…</Text>
+                          <ActivityIndicator
+                            size="small"
+                            color={COLORS.primary}
+                            style={styles.feedbackLoader}
+                          />
+                          <Text style={styles.feedbackLoadingText}>
+                            Malam AI is thinking…
+                          </Text>
                         </View>
                       ) : whyWrongErrors[getFeedbackKey(item, index)] ? (
-                        <Text style={styles.workingError}>{whyWrongErrors[getFeedbackKey(item, index)]}</Text>
+                        <Text style={styles.workingError}>
+                          {whyWrongErrors[getFeedbackKey(item, index)]}
+                        </Text>
                       ) : (
-                        whyWrongResponses[getFeedbackKey(item, index)]?.split('\n').map((line, idx) => {
-                          const trimmed = line.trim();
-                          if (!trimmed) return null;
-                          let dotStyle = styles.feedbackDotAmber;
-                          if (/trap|tempting|wrong/i.test(trimmed)) dotStyle = styles.feedbackDotRed;
-                          if (/correct|key|because/i.test(trimmed)) dotStyle = styles.feedbackDotGreen;
-                          if (/remember|memory|trick/i.test(trimmed)) dotStyle = styles.feedbackDotAmber;
-                          return (
-                            <View key={idx} style={styles.feedbackRow}>
-                              <View style={[styles.feedbackDot, dotStyle]} />
-                              <Text style={styles.feedbackText}>{trimmed}</Text>
-                            </View>
-                          );
-                        })
+                        whyWrongResponses[getFeedbackKey(item, index)]
+                          ?.split('\n')
+                          .map((line, idx) => {
+                            const trimmed = line.trim();
+                            if (!trimmed) return null;
+                            let dotStyle = styles.feedbackDotAmber;
+                            if (/trap|tempting|wrong/i.test(trimmed))   dotStyle = styles.feedbackDotRed;
+                            if (/correct|key|because/i.test(trimmed))   dotStyle = styles.feedbackDotGreen;
+                            if (/remember|memory|trick/i.test(trimmed)) dotStyle = styles.feedbackDotAmber;
+                            return (
+                              <View key={idx} style={styles.feedbackRow}>
+                                <View style={[styles.feedbackDot, dotStyle]} />
+                                <Text style={styles.feedbackText}>{trimmed}</Text>
+                              </View>
+                            );
+                          })
                       )}
                       <TouchableOpacity
                         style={styles.collapseBtn}
-                        onPress={() => setExpandedWhyWrong((prev) => ({ ...prev, [getFeedbackKey(item, index)]: false }))}
+                        onPress={() =>
+                          setExpandedWhyWrong((prev) => ({
+                            ...prev,
+                            [getFeedbackKey(item, index)]: false,
+                          }))
+                        }
                       >
                         <Text style={styles.collapseText}>Close ▲</Text>
                       </TouchableOpacity>
@@ -173,7 +250,10 @@ export default function ScoreScreen({ route, navigation }) {
           </View>
         )}
 
-        <TouchableOpacity style={styles.btn} onPress={() => navigation.navigate('MainTabs', { screen: 'Subjects' })}>
+        <TouchableOpacity
+          style={styles.btn}
+          onPress={() => navigation.navigate('MainTabs', { screen: 'Subjects' })}
+        >
           <Text style={styles.btnText}>Study Another Topic</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -190,6 +270,26 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     color: COLORS.primary,
+  },
+  // NEW save status styles
+  saveStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  saveStatusText: {
+    fontSize: 12,
+    color: COLORS.textLight,
+  },
+  saveStatusSaved: {
+    fontSize: 12,
+    color: COLORS.correct,
+    fontWeight: '600',
+  },
+  saveStatusError: {
+    fontSize: 12,
+    color: COLORS.wrong,
   },
   scoreBox: {
     marginTop: 16,
@@ -308,15 +408,9 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginRight: 10,
   },
-  feedbackDotRed: {
-    backgroundColor: '#d63447',
-  },
-  feedbackDotGreen: {
-    backgroundColor: '#1d7d34',
-  },
-  feedbackDotAmber: {
-    backgroundColor: COLORS.accent,
-  },
+  feedbackDotRed:   { backgroundColor: '#d63447' },
+  feedbackDotGreen: { backgroundColor: '#1d7d34' },
+  feedbackDotAmber: { backgroundColor: COLORS.accent },
   feedbackText: {
     color: COLORS.textPrimary,
     lineHeight: 20,
@@ -329,19 +423,6 @@ const styles = StyleSheet.create({
   collapseText: {
     color: COLORS.primary,
     fontWeight: '700',
-  },
-  workingContainer: {
-    marginTop: 12,
-    backgroundColor: COLORS.correctBg,
-    borderRadius: 14,
-    padding: 14,
-  },
-  workingLoader: {
-    marginTop: 8,
-  },
-  workingText: {
-    color: '#1f3c2b',
-    lineHeight: 22,
   },
   workingError: {
     color: COLORS.wrong,

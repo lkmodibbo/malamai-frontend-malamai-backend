@@ -13,6 +13,7 @@
     "expo-dev-client": "~6.0.21",
     "expo-image-picker": "~56.0.18",
     "expo-status-bar": "~56.0.4",
+    "formik": "^2.4.9",
     "metro": "^0.84.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -20,7 +21,8 @@
     "react-native-reanimated": "4.3.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "4.25.2",
-    "react-native-web": "^0.21.2"
+    "react-native-web": "^0.21.2",
+    "yup": "^1.7.1"
   },
   "scripts": {
     "start": "expo start",
