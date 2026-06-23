@@ -1,14 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getProfileKey } from './useStudentProfile';
 
 const EXAM_DATE_KEY = 'exam_date';
 const EXAM_START_KEY = 'exam_start_date';
-const PROFILE_KEY = 'student_profile';
 const MS_PER_DAY = 86400000;
+
+async function getAuthUser() {
+  try {
+    const raw = await AsyncStorage.getItem('auth_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function getScopedKey(key) {
+  const user = await getAuthUser();
+  const scope = user?.id || user?.email || null;
+  return scope ? `${key}:${scope}` : key;
+}
 
 async function getStoredDate(key) {
   try {
-    const raw = await AsyncStorage.getItem(key);
+    const scopedKey = await getScopedKey(key);
+    const raw = await AsyncStorage.getItem(scopedKey);
     if (!raw) return null;
     const date = new Date(raw);
     return Number.isNaN(date.getTime()) ? null : date;
@@ -20,7 +36,8 @@ async function getStoredDate(key) {
 
 async function getExamDateFromProfile() {
   try {
-    const raw = await AsyncStorage.getItem(PROFILE_KEY);
+    const profileKey = await getProfileKey();
+    const raw = await AsyncStorage.getItem(profileKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed?.examDate) return null;
@@ -33,7 +50,8 @@ async function getExamDateFromProfile() {
 
 async function persistDate(key, date) {
   try {
-    await AsyncStorage.setItem(key, date.toISOString());
+    const scopedKey = await getScopedKey(key);
+    await AsyncStorage.setItem(scopedKey, date.toISOString());
   } catch (error) {
     console.warn('[useExamCountdown] failed to save date', error);
   }
@@ -41,10 +59,11 @@ async function persistDate(key, date) {
 
 async function persistDateToProfile(date) {
   try {
-    const raw = await AsyncStorage.getItem(PROFILE_KEY);
+    const profileKey = await getProfileKey();
+    const raw = await AsyncStorage.getItem(profileKey);
     const parsed = raw ? JSON.parse(raw) : {};
     parsed.examDate = date.toISOString();
-    await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(parsed));
+    await AsyncStorage.setItem(profileKey, JSON.stringify(parsed));
   } catch (error) {
     console.warn('[useExamCountdown] failed to sync date to profile', error);
   }

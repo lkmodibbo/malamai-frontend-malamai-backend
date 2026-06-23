@@ -8,6 +8,7 @@ import FlashcardScreen from './FlashcardScreen';
 import { callGrok, parseQuestionJson, normalizeQuestionList, isQuotaError } from '../src/utils/grok';
 import { getMode, getSystemPrompt } from '../src/hooks/useLanguageMode';
 import { COLORS } from '../constants/colors';
+import { getQuestionsFromDB } from '../src/utils/apiService';
 
 // Using Grok API for generating learning content.
 // The API key and endpoint must come from environment variables.
@@ -160,72 +161,67 @@ export default function LearnScreen({ route, navigation }) {
 
   // FIX 2 (continued): Guard is now loadingQuestion instead of questions.length,
   // so retrying after a failed fetch works correctly.
-  async function fetchQuestions() {
-    if (loadingQuestion) return;
+ async function fetchQuestions() {
+  if (loadingQuestion) return;
 
-    setLoadingQuestion(true);
-    setQuestionError('');
-    try {
-      const subjectName = subject?.name || 'this subject';
-      const practiceTopic = topic || subjectName;
-      const languageMode = await getMode();
-      const systemPrompt = getSystemPrompt(languageMode);
-      const practicePrompt = `
-${systemPrompt}
+  setLoadingQuestion(true);
+  setQuestionError('');
 
-You are Malam AI, a JAMB tutor. Generate exactly ${maxQuestions} unique multiple choice JAMB-style
-questions on the topic "${practiceTopic}" in "${subjectName}".
+  try {
+    const subjectName  = subject?.name || 'this subject';
+    const practiceTopic = topic || subjectName;
+    let   nextQuestions = [];
 
-Rules:
-- Each question must have four options: A, B, C, and D.
-- Each question must have exactly one correct answer.
-- Do not repeat or closely rephrase any question.
-- Keep language simple for a Nigerian SS3 student.
-- Return valid JSON only. No markdown, no notes, no extra text.
-
-Format your response EXACTLY like this JSON:
-{
-  "questions": [
-    {
-      "question": "The question here",
-      "options": {
-        "A": "First option",
-        "B": "Second option",
-        "C": "Third option",
-        "D": "Fourth option"
-      },
-      "answer": "A",
-      "explanation": "Why this answer is correct, in simple terms a Nigerian SS3 student would understand"
+    // STEP 1 — Try to get questions from your backend database first
+    if (subject?.id) {
+      console.log('[fetchQuestions] trying database first...');
+      const dbQuestions = await getQuestionsFromDB(
+        subject.id,
+        null,
+        maxQuestions
+      );
+      if (dbQuestions.length >= maxQuestions) {
+        console.log(`[fetchQuestions] got ${dbQuestions.length} from database`);
+        nextQuestions = dbQuestions.slice(0, maxQuestions);
+      }
     }
-  ]
-}
-`;
-      const text = await callGrok(practicePrompt);
-      const parsed = parseQuestionJson(String(text));
-      const nextQuestions = normalizeQuestionList(parsed, maxQuestions);
 
-      setQuestions(nextQuestions);
-      setCurrentQuestionIndex(0);
-      setSelectedAnswers({});
-
-      // FIX 3 (continued): Start the timer only after questions are successfully loaded.
-      setTimeRemaining(QUIZ_TIME_SECONDS);
-    } catch (err) {
-      console.error('[fetchQuestions]', err);
-
-      if (isQuotaError(err)) {
-        setQuestionError(err.retryDelay
-          ? `${QUOTA_ERROR_MESSAGE} You can retry Grok in about ${err.retryDelay} seconds.`
-          : QUOTA_ERROR_MESSAGE);
-        return;
+    // STEP 2 — Fall back to Groq if database has no questions
+    if (nextQuestions.length < maxQuestions) {
+      console.log('[fetchQuestions] database empty — using Groq AI...');
+      const languageMode  = await getMode();
+      const systemPrompt  = getSystemPrompt(languageMode);
+      const practicePrompt = `
+        ${systemPrompt}
+          Generate exactly ${maxQuestions} unique JAMB-style MCQ questions
+          on "${practiceTopic}" in "${subjectName}".
+          Return valid JSON only — no markdown.
+          Format: { "questions": [{ "question":"","options":{"A":"","B":"","C":"","D":""},"answer":"A","explanation":"" }] }
+        `;
+        const text     = await callGrok(practicePrompt);
+        const parsed   = parseQuestionJson(String(text));
+        nextQuestions  = normalizeQuestionList(parsed, maxQuestions);
       }
 
-      setQuestionError(err.message || 'Failed to fetch questions.');
-      Alert.alert('Error', 'Failed to fetch questions. Please try again.');
-    } finally {
-      setLoadingQuestion(false);
+    setQuestions(nextQuestions);
+    setCurrentQuestionIndex(0);
+    setSelectedAnswers({});
+    setTimeRemaining(QUIZ_TIME_SECONDS);
+
+  } catch (err) {
+    console.error('[fetchQuestions]', err);
+    if (isQuotaError(err)) {
+      setQuestionError(err.retryDelay
+        ? `${QUOTA_ERROR_MESSAGE} Retry in ${err.retryDelay}s.`
+        : QUOTA_ERROR_MESSAGE);
+      return;
     }
+    setQuestionError(err.message || 'Failed to fetch questions.');
+    Alert.alert('Error', 'Failed to fetch questions. Please try again.');
+  } finally {
+    setLoadingQuestion(false);
   }
+}
 
   function startPractice() {
     if (questions.length === 0 && Object.keys(selectedAnswers).length === 0) {

@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import useStudentProfile from '../src/hooks/useStudentProfile';
 import useNotes from '../src/hooks/useNotes';
 import SUBJECTS from '../constants/subjects';
+import { logout } from '../src/utils/apiService';
 
 // expo-image-picker crashes on web at module load — lazy require it
 const ImagePicker = Platform.OS !== 'web'
@@ -52,6 +53,7 @@ export default function ProfileScreen({ navigation }) {
   const [message, setMessage] = useState('');
   const [expandedNote, setExpandedNote] = useState(null); // key of expanded note
   const [avatarUri, setAvatarUri] = useState(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   useEffect(() => {
     if (!loading && profile) {
@@ -143,6 +145,24 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  const handleLogout = () => setShowLogoutModal(true);
+
+  const handleConfirmLogout = async () => {
+    const rootNav = navigation.getParent()?.getParent() || navigation.getParent() || navigation;
+    try {
+      rootNav.reset({ index: 0, routes: [{ name: 'Home' }] });
+    } catch (err) {
+      console.warn('[ProfileScreen] navigation.reset failed', err);
+    }
+
+    try {
+      await logout();
+    } catch (err) {
+      console.warn('[ProfileScreen] logout failed', err);
+    }
+    setShowLogoutModal(false);
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.root}>
@@ -191,6 +211,12 @@ export default function ProfileScreen({ navigation }) {
             onPress={() => { setEditingName((v) => !v); setEditingSubjects(false); setShowDatePicker(false); }}
           >
             <Text style={styles.editPillText}>{editingName ? 'Cancel' : '✏️ Edit'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.logoutPill}
+            onPress={handleLogout}
+          >
+            <Text style={styles.logoutPillText}>Log out</Text>
           </TouchableOpacity>
         </View>
 
@@ -387,6 +413,23 @@ export default function ProfileScreen({ navigation }) {
           </View>
         ) : null}
 
+        {/* Logout confirmation modal */}
+        <Modal visible={showLogoutModal} transparent animationType="fade" onRequestClose={() => setShowLogoutModal(false)}>
+          <View style={styles.logoutModalOverlay}>
+            <View style={styles.logoutModalCard}>
+              <Text style={styles.logoutModalTitle}>Are you sure you want to log out?</Text>
+              <View style={styles.logoutModalActions}>
+                <TouchableOpacity style={styles.logoutModalBtn} onPress={() => setShowLogoutModal(false)}>
+                  <Text style={styles.logoutModalBtnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.logoutModalBtn, styles.logoutModalConfirm]} onPress={handleConfirmLogout}>
+                  <Text style={[styles.logoutModalBtnText, { color: '#fff' }]}>Yes, log out</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
@@ -469,6 +512,16 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   editPillText: { color: '#ffffff', fontWeight: '700', fontSize: 12 },
+  logoutPill: {
+    marginLeft: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  logoutPillText: { color: '#ffecec', fontWeight: '700', fontSize: 12 },
 
   // Countdown
   countdownCard: {
@@ -606,4 +659,31 @@ const styles = StyleSheet.create({
     borderColor: '#27ae60',
   },
   messageText: { color: '#1e8449', fontWeight: '700', fontSize: 13 },
+  logoutModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  logoutModalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 18,
+    alignItems: 'center',
+  },
+  logoutModalTitle: { fontSize: 16, fontWeight: '800', color: '#1b2a4a', marginBottom: 14, textAlign: 'center' },
+  logoutModalActions: { flexDirection: 'row', gap: 10 },
+  logoutModalBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    backgroundColor: '#f4f6fb',
+  },
+  logoutModalBtnText: { color: '#1b2a4a', fontWeight: '800' },
+  logoutModalConfirm: {
+    backgroundColor: '#d64545',
+  },
 });

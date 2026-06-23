@@ -4,6 +4,33 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const PROFILE_KEY = 'student_profile';
 const ONBOARDING_KEY = 'onboarding_complete';
 
+async function getAuthUser() {
+  try {
+    const raw = await AsyncStorage.getItem('auth_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function getUserScope(user) {
+  return user?.id || user?.email || null;
+}
+
+async function getScopedKey(key) {
+  const user = await getAuthUser();
+  const scope = getUserScope(user);
+  return scope ? `${key}:${scope}` : key;
+}
+
+export async function getProfileKey() {
+  return getScopedKey(PROFILE_KEY);
+}
+
+export async function getOnboardingKey() {
+  return getScopedKey(ONBOARDING_KEY);
+}
+
 function parseProfile(raw) {
   if (!raw) return null;
   try {
@@ -25,31 +52,46 @@ function parseProfile(raw) {
 
 export async function getProfile() {
   try {
-    const raw = await AsyncStorage.getItem(PROFILE_KEY);
-    return parseProfile(raw) || { name: '', selectedSubjects: ['english'], examDate: null };
+    const [key, authUser] = await Promise.all([getProfileKey(), getAuthUser()]);
+    const raw = await AsyncStorage.getItem(key);
+    return parseProfile(raw) || {
+      name: authUser?.name || '',
+      selectedSubjects: ['english'],
+      examDate: null,
+      avatarUri: null,
+    };
   } catch (error) {
     console.warn('[useStudentProfile] getProfile failed', error);
-    return { name: '', selectedSubjects: ['english'], examDate: null };
+    return { name: '', selectedSubjects: ['english'], examDate: null, avatarUri: null };
   }
 }
 
 export async function saveProfile(profile) {
   try {
+    const key = await getProfileKey();
+    const examDate =
+      profile.examDate instanceof Date
+        ? profile.examDate
+        : profile.examDate
+          ? new Date(profile.examDate)
+          : null;
     const normalized = {
       name: (profile.name || '').trim(),
       selectedSubjects: Array.isArray(profile.selectedSubjects) && profile.selectedSubjects.length > 0
         ? profile.selectedSubjects
         : ['english'],
-      examDate: profile.examDate instanceof Date ? profile.examDate.toISOString() : new Date(profile.examDate).toISOString(),
+      examDate: examDate && !Number.isNaN(examDate.getTime()) ? examDate.toISOString() : null,
       avatarUri: profile.avatarUri || null,
     };
-    await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(normalized));
-    // Keep the dedicated exam_date key in sync so useExamCountdown picks it up immediately
-    await AsyncStorage.setItem('exam_date', normalized.examDate);
+    await AsyncStorage.setItem(key, JSON.stringify(normalized));
+    // Keep the dedicated exam date key in sync so useExamCountdown picks it up immediately.
+    if (normalized.examDate) {
+      await AsyncStorage.setItem(await getScopedKey('exam_date'), normalized.examDate);
+    }
     return {
       name: normalized.name,
       selectedSubjects: normalized.selectedSubjects,
-      examDate: new Date(normalized.examDate),
+      examDate: normalized.examDate ? new Date(normalized.examDate) : null,
       avatarUri: normalized.avatarUri,
     };
   } catch (error) {
@@ -60,7 +102,8 @@ export async function saveProfile(profile) {
 
 export async function isOnboardingComplete() {
   try {
-    const raw = await AsyncStorage.getItem(ONBOARDING_KEY);
+    const key = await getOnboardingKey();
+    const raw = await AsyncStorage.getItem(key);
     return raw === 'true';
   } catch (error) {
     console.warn('[useStudentProfile] isOnboardingComplete failed', error);
@@ -70,7 +113,8 @@ export async function isOnboardingComplete() {
 
 export async function setOnboardingComplete(value = true) {
   try {
-    await AsyncStorage.setItem(ONBOARDING_KEY, value ? 'true' : 'false');
+    const key = await getOnboardingKey();
+    await AsyncStorage.setItem(key, value ? 'true' : 'false');
   } catch (error) {
     console.warn('[useStudentProfile] setOnboardingComplete failed', error);
   }

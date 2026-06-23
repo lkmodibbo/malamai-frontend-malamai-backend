@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DateTimePicker = Platform.OS !== 'web'
   ? require('@react-native-community/datetimepicker').default
@@ -17,6 +18,19 @@ export default function OnboardingScreen({ navigation }) {
   const [examDate, setExamDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    async function loadAccountName() {
+      try {
+        const raw = await AsyncStorage.getItem('auth_user');
+        const user = raw ? JSON.parse(raw) : null;
+        if (user?.name) setName(user.name);
+      } catch (error) {
+        console.warn('[OnboardingScreen] failed to load account name', error);
+      }
+    }
+    loadAccountName();
+  }, []);
 
   const canContinue = useMemo(() => {
     if (step === 1) return name.trim().length > 0;
