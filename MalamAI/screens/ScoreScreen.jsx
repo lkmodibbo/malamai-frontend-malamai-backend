@@ -106,11 +106,11 @@ export default function ScoreScreen({ route, navigation }) {
 
   const percent       = total > 0 ? Math.round((score / total) * 100) : 0;
   let message         = 'Good effort! Keep practicing to improve.';
-  let hausa           = 'Ka yi ƙoƙari! Ci gaba da yin nazari.';
+  let hausa           = 'Ya yi ƙoƙari! Ci gaba da yin nazari.';
 
   if (percent >= 80) {
     message = 'Excellent work — you are ready!';
-    hausa   = 'Nagode — Ka yi kyau sosai!';
+    hausa   = 'Nagode — Ya yi kyau sosai!';
   } else if (percent >= 50) {
     message = 'Nice progress — a bit more practice will help.';
     hausa   = 'Ka yi kyau — kada ka damu, ka ci gaba da karatu.';

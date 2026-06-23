@@ -123,7 +123,7 @@ export default function LandingScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Features */}
+        {/* Features — 3 columns × 2 rows */}
         <Text style={styles.sectionTitle}>Everything you need to score high</Text>
         <View style={styles.featuresGrid}>
           {FEATURES.map((f) => (
@@ -133,6 +133,30 @@ export default function LandingScreen({ navigation }) {
               <Text style={styles.featureBody}>{f.body}</Text>
             </View>
           ))}
+        </View>
+
+        {/* Image + motivational text section — text left, image right */}
+        <View style={styles.promoRow}>
+          <View style={styles.promoText}>
+            <Text style={styles.promoTitle}>Your score is not determined by luck</Text>
+            <Text style={styles.promoBody}>
+              Students who pass JAMB study consistently and track weak areas daily.
+              CrackJAMB gives you AI explanations, mock exams, flashcards and more.
+            </Text>
+            <TouchableOpacity
+              style={styles.promoBtn}
+              onPress={() => requireAuth(() => navigation.navigate('Subjects'))}
+            >
+              <Text style={styles.promoBtnText}>Start preparing →</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.promoImageWrap}>
+            <Image
+              source={require('../assets/Images/JambImage-2.jpeg')}
+              style={styles.promoImage}
+              resizeMode="cover"
+            />
+          </View>
         </View>
 
         {/* Subjects preview */}
@@ -276,12 +300,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     overflow: 'hidden',
     marginBottom: 28,
-    minHeight: 180,
+    height: 130,
   },
   motivationImage: {
-    width: '42%',
-    height: '100%',
-    minHeight: 180,
+    width: '35%',
   },
   motivationContent: {
     flex: 1,
@@ -322,24 +344,69 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
 
-  // Features grid
+  // Features grid — 3 columns
   featuresGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 28,
+    gap: 8,
+    marginBottom: 24,
   },
   featureCard: {
-    width: '47.5%',
+    width: '31%',
     backgroundColor: '#f4f6fb',
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 14,
+    padding: 12,
     borderWidth: 1,
     borderColor: '#dde3ef',
   },
-  featureEmoji: { fontSize: 26, marginBottom: 8 },
-  featureTitle: { fontSize: 13, fontWeight: '800', color: '#1b2a4a', marginBottom: 4 },
-  featureBody: { fontSize: 12, color: '#6b7c9a', lineHeight: 17 },
+  featureEmoji: { fontSize: 22, marginBottom: 6 },
+  featureTitle: { fontSize: 11, fontWeight: '800', color: '#1b2a4a', marginBottom: 4 },
+  featureBody: { fontSize: 10, color: '#6b7c9a', lineHeight: 15 },
+
+  // Promo row — text left, image right
+  promoRow: {
+    flexDirection: 'row',
+    borderRadius: 18,
+    overflow: 'hidden',
+    marginBottom: 28,
+    backgroundColor: '#f4f6fb',
+    borderWidth: 1,
+    borderColor: '#dde3ef',
+    height: 170,
+  },
+  promoText: {
+    flex: 1,
+    padding: 14,
+    justifyContent: 'center',
+  },
+  promoImageWrap: {
+    width: 110,
+  },
+  promoImage: {
+    width: 110,
+    height: 170,
+  },
+  promoTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#1b2a4a',
+    lineHeight: 19,
+    marginBottom: 8,
+  },
+  promoBody: {
+    fontSize: 11,
+    color: '#6b7c9a',
+    lineHeight: 17,
+    marginBottom: 12,
+  },
+  promoBtn: {
+    backgroundColor: '#1b2a4a',
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    alignSelf: 'flex-start',
+  },
+  promoBtnText: { color: '#ffffff', fontWeight: '700', fontSize: 11 },
 
   // Subjects
   subjectsGrid: {

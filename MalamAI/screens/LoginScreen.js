@@ -11,14 +11,20 @@ import { login, register } from '../src/utils/apiService';
 import { COLORS } from '../src/constants/colors';
 import { isOnboardingComplete } from '../src/hooks/useStudentProfile';
 
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
 const loginSchema = Yup.object({
-  email: Yup.string().email('Enter a valid email').required('Email is required'),
+  email: Yup.string()
+    .matches(EMAIL_REGEX, 'Enter a valid email address (e.g. name@gmail.com)')
+    .required('Email is required'),
   password: Yup.string().min(6, 'Password must be at least 6 characters').required('Password is required'),
 });
 
 const registerSchema = Yup.object({
   name: Yup.string().min(2, 'Name is too short').required('Name is required'),
-  email: Yup.string().email('Enter a valid email').required('Email is required'),
+  email: Yup.string()
+    .matches(EMAIL_REGEX, 'Enter a valid email address (e.g. name@gmail.com)')
+    .required('Email is required'),
   password: Yup.string().min(6, 'Password must be at least 6 characters').required('Password is required'),
   confirmPassword: Yup.string()
     .oneOf([Yup.ref('password')], 'Passwords do not match')
@@ -122,7 +128,7 @@ export default function LoginScreen({ navigation }) {
             validationSchema={isLogin ? loginSchema : registerSchema}
             onSubmit={handleSubmit}
           >
-            {({ handleChange, handleBlur, handleSubmit: submit, values, errors, touched, isSubmitting }) => (
+            {({ handleChange, handleBlur, handleSubmit: submit, values, errors, touched, isSubmitting, setFieldTouched }) => (
               <View style={styles.form}>
                 {!isLogin && (
                   <Field
@@ -141,12 +147,16 @@ export default function LoginScreen({ navigation }) {
                   label="Email address"
                   placeholder="you@example.com"
                   value={values.email}
-                  onChangeText={handleChange('email')}
+                  onChangeText={(val) => {
+                    handleChange('email')(val);
+                    if (touched.email) setFieldTouched('email', true, true);
+                  }}
                   onBlur={handleBlur('email')}
                   error={errors.email}
                   touched={touched.email}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  autoCorrect={false}
                 />
 
                 <Field
