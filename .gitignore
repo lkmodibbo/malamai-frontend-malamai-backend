@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+
+# environment
+.env
+.env.*
+!.env.example
+
+# logs and OS
+*.log
+.DS_Store
+
+# Expo / Metro
+.expo/
+dist/
+web-build/
+.metro-health-check*
+expo-env.d.ts
+
+# native builds
+ios/
+android/
+.kotlin/
+
+# tooling
+.vscode/
+.idea/
+*.tsbuildinfo
+npm-debug.*
+yarn-debug.*
+yarn-error.*

@@ -1,0 +1,11 @@
+{
+  "name": "malamai",
+  "private": true,
+  "scripts": {
+    "frontend": "npm start --prefix frontend",
+    "frontend:android": "npm run android --prefix frontend",
+    "frontend:ios": "npm run ios --prefix frontend",
+    "backend": "npm run dev --prefix backend",
+    "backend:start": "npm start --prefix backend"
+  }
+}
